@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"archive/zip"
 	"bufio"
 	"bytes"
 	"context"
@@ -15,7 +16,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	bolt "go.etcd.io/bbolt"
+	"github.com/klauspost/compress/zstd"
 )
 
 func NewPbFile() pb.File {
@@ -129,81 +130,72 @@ func pbBoltSave(pbIn *pb.File) (boltPath string, err error) {
 }
 
 func pbBoltExtract(boltPath string) (statusCode int, err error) {
-	db, err := bolt.Open(boltPath, 0600, &bolt.Options{Timeout: 1 * time.Second})
+	fh, err := os.Open(boltPath)
 	if err != nil {
 		PrintError("pbBoltExtract:Open", err)
 		return 500, err
 	}
-	defer db.Close()
 
-	t1 := time.Now()
-	var key, fpath, dstPath, dkey string
-	var infov, bv, fdata []byte
-	var finfo FileInfoLite
+	finfo, err := fh.Stat()
+	if err != nil {
+		PrintError("pbBoltExtract:Stat", err)
+		return 500, err
+	} else {
+		PrintlnInfo("cyan", "pbBoltExtract:Size", finfo.Size())
+	}
 
-	db.View(func(tx *bolt.Tx) error {
-		bkt := tx.Bucket([]byte("pbfiles"))
-		c := bkt.Cursor()
-		for k, v := c.First(); k != nil; k, v = c.Next() {
-			key = string(k)
-			if strings.HasPrefix(key, "INFO/") {
-				fpath = strings.TrimPrefix(key, "INFO/")
-				dstPath = ToUnixSlash(filepath.Join(TargetDir, fpath))
-				if IsOverwrite == false {
-					if FileExists(dstPath) {
-						DebugInfo("pbBoltExtract", "SKIP as exist: ", fpath)
-						continue
-					}
-				}
-				//
-				safePbSaveStatus.Store(fpath, int64(500))
-				infov, err = UnZstdBytes(v)
-				if err != nil {
-					PrintError("pbBoltExtract:finfo:UnZstdBytes", err)
-				}
+	unzipReader, err := zip.NewReader(fh, finfo.Size())
+	if err != nil {
+		PrintError("pbBoltExtract:NewReader", err)
+		return 500, err
+	}
 
-				if infov != nil {
-					finfo, err = fileInfoLite2Finfo(infov)
-					if err != nil {
-						PrintError("pbBoltExtract:fileInfoLite2Finfo", err)
-					}
-				}
+	decomp := zstd.ZipDecompressor(
+		zstd.WithDecoderConcurrency(4),
+	)
 
-				dkey = strings.Join([]string{"DATA", fpath}, "/")
-				bv = bkt.Get([]byte(dkey))
-				if bv != nil {
-					fdata, err = UnZstdBytes(bv)
-					if err != nil {
-						PrintError("pbBoltExtract:fdata:UnZstdBytes", err)
-					}
-				}
+	unzipReader.RegisterDecompressor(zstd.ZipMethodWinZip, decomp)
+	unzipReader.RegisterDecompressor(zstd.ZipMethodPKWare, decomp)
 
-				MakeDirs(filepath.Dir(dstPath))
-				err := os.WriteFile(dstPath, fdata, os.ModePerm)
-				if err != nil {
-					PrintError("pbBoltExtract:os.WriteFile", err)
-					return err
-				}
+	var dstPath string
+	for _, fzip := range unzipReader.File {
+		header := fzip.FileHeader
+		finfo := header.FileInfo()
 
-				err1 := os.Chmod(dstPath, finfo.Mode)
-				PrintError("pbBoltExtract:os.Chmod", err1)
-				err2 := os.Chtimes(dstPath, finfo.ModTime, finfo.ModTime)
-				PrintError("pbBoltExtract:os.Chtimes", err2)
-				//
-				if err1 != nil || err2 != nil {
-					safePbSaveStatus.Store(fpath, int64(500))
-				}
-
-				if FileExists(dstPath) {
-					safePbSaveStatus.Store(fpath, int64(201))
-				}
+		dstPath = ToUnixSlash(filepath.Join(TargetDir, fzip.Name))
+		if finfo.IsDir() {
+			MakeDirs(dstPath)
+		} else {
+			MakeDirs(filepath.Dir(dstPath))
+			dst, err := os.Create(dstPath)
+			if err != nil {
+				PrintError("pbBoltExtract:os.Create", err)
+				continue
 			}
-		}
-		return nil
-	})
+			funzip, err := fzip.Open()
+			if err != nil {
+				PrintError("pbBoltExtract:fzip.Open", err)
+				continue
+			}
 
-	PrintlnInfo("green", "pbBoltExtract: Elapse:", time.Since(t1))
-	db.Close()
+			if _, err := io.Copy(dst, funzip); err != nil {
+				PrintError("pbBoltExtract:io.Copy", err)
+			}
+
+			if err := funzip.Close(); err != nil {
+				PrintError("pbBoltExtract:funzip.Close", err)
+			}
+			dst.Close()
+		}
+
+		err = os.Chtimes(dstPath, finfo.ModTime(), finfo.ModTime())
+		PrintError("pbBoltExtract:os.Chtimes", err)
+
+		err = os.Chmod(dstPath, finfo.Mode())
+		PrintError("pbBoltExtract:os.Chmod", err)
+	}
+
+	fh.Close()
 
 	//
 	if FileExists(boltPath) {
@@ -296,99 +288,6 @@ func serverHealthCheck() error {
 	return nil
 }
 
-func pbFileSend(fpath string, pbFile *pb.File) error {
-	pbFileData, err := os.ReadFile(fpath)
-	if err != nil {
-		PrintError("pbFileSend:os.ReadFile", err)
-		return err
-	}
-
-	atomic.AddInt32(&chanNum, 1)
-	atomic.AddInt64(&totalWriteSize, int64(pbFile.Size()))
-
-	if IsZstdSend {
-		pbFile.Data = ZstdBytes(pbFileData)
-		pbFile.Zstd = true
-	} else {
-		pbFile.Data = pbFileData
-		pbFile.Zstd = false
-	}
-
-	_, err = gClient.Put(context.Background(), pbFile)
-	if err != nil {
-		PrintError("pbFileSend: gClientStream.Send", err)
-		return err
-	}
-
-	DebugInfo("pbFileSend", "ONE_DONE")
-
-	return nil
-}
-
-func pbFileSave(pbIn *pb.File) (statusCode int, err error) {
-	dstPath := ToUnixSlash(pbGetTargetPath(pbIn))
-	dstPathTemp := ToUnixSlash(strings.Join([]string{dstPath, "ing"}, "."))
-
-	fi := pbIn.GetFinfo()
-
-	var pbInFinfo FileInfoLite
-	pbInFinfo, err = fileInfoLite2Finfo(fi)
-	if err != nil {
-		PrintError("pbFileChunkSave: fileInfoLite2Finfo", err)
-		return 500, err
-	}
-
-	MakeDirs(filepath.Dir(dstPath))
-
-	dstWriter, err := os.OpenFile(dstPathTemp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.ModePerm)
-	dstWriter.Truncate(0)
-
-	var pbInData []byte
-	if pbIn.Zstd == true {
-		pbInData, err = UnZstdBytes(pbIn.Data)
-		if err != nil {
-			PrintError("pbFileChunkSave: UnZstdBytes", err)
-			return 500, err
-		}
-	} else {
-		pbInData = pbIn.Data
-	}
-
-	_, err = dstWriter.Write(pbInData)
-	if err != nil {
-		PrintError("pbFileChunkSave: dstWriter.Write", err)
-		return 500, err
-	}
-	dstWriter.Close()
-
-	pbInData = nil
-
-	dstSum := hashFile(dstPathTemp)
-	if string(pbIn.GetFsum()) != dstSum {
-		err = NewError("dstPath xxhash is not matched")
-		PrintError("streamSaveFile: dstSum", err)
-		return 500, err
-	}
-
-	DebugInfo("streamSaveFile: dstSum matched", dstSum)
-	if err = os.Rename(dstPathTemp, dstPath); err != nil {
-		PrintError("streamSaveFile: os.Rename", err)
-		return 500, err
-	}
-
-	if err = os.Chmod(dstPath, pbInFinfo.Mode); err != nil {
-		PrintError("streamSaveFile: os.Chmod", err)
-		return 500, err
-	}
-
-	if err = os.Chtimes(dstPath, pbInFinfo.ModTime, pbInFinfo.ModTime); err != nil {
-		PrintError("streamSaveFile: os.Chtimes", err)
-		return 500, err
-	}
-
-	return 206, nil
-}
-
 func pbFileChunkSend(fpath string, pbFile *pb.File) error {
 	fp, err := os.Open(fpath)
 	if err != nil {
@@ -423,13 +322,8 @@ func pbFileChunkSend(fpath string, pbFile *pb.File) error {
 			break
 		}
 
-		if IsZstdSend {
-			pbFile.Data = ZstdBytes(buffer[:n])
-			pbFile.Zstd = true
-		} else {
-			pbFile.Data = buffer[:n]
-			pbFile.Zstd = false
-		}
+		pbFile.Data = ZstdBytes(buffer[:n])
+		pbFile.Zstd = true
 
 		pbFile.ChunkNum = int32(chunkNum)
 		pbFile.ChanNum = channum
@@ -541,7 +435,6 @@ func pbFileChunkSave(pbIn *pb.File) (statusCode int, err error) {
 			return 500, err
 		}
 		DebugInfo("streamSaveFile: Saved", chunkTotal, ": ", string(pbIn.Path))
-		DebugInfo("streamSaveFile: chanFile0123", len(chanFile), ", ", len(chanFile1), ", ", len(chanFile2), ", ", len(chanFile3))
 
 		return 200, nil
 	}
@@ -551,7 +444,7 @@ func pbFileChunkSave(pbIn *pb.File) (statusCode int, err error) {
 
 func pbFileDirSymlinkSave(pbIn *pb.File) (respStatus int32) {
 	if string(pbIn.Ftype) == "dir" {
-		dstPath := filepath.Join(TargetDir, string(pbIn.GetPath()))
+		dstPath := ToUnixSlash(filepath.Join(TargetDir, string(pbIn.GetPath())))
 		//DebugInfo("dir", dstPath)
 		MakeDirs(dstPath)
 
@@ -559,9 +452,9 @@ func pbFileDirSymlinkSave(pbIn *pb.File) (respStatus int32) {
 			finfo, err := fileInfoLite2Finfo(pbIn.Finfo)
 			if err == nil {
 				err = os.Chmod(dstPath, finfo.Mode)
-				PrintError("StreamReceive:dir:os.Chmod", err)
+				PrintError("pbFileDirSymlinkSave:dir:os.Chmod", err)
 				err = os.Chtimes(dstPath, finfo.ModTime, finfo.ModTime)
-				PrintError("StreamReceive:dir:os.Chtimes", err)
+				PrintError("pbFileDirSymlinkSave:dir:os.Chtimes", err)
 			}
 		}
 
@@ -574,7 +467,7 @@ func pbFileDirSymlinkSave(pbIn *pb.File) (respStatus int32) {
 		pbInFile := string(pbIn.GetComment())
 		pre := pbInFile[0:5]
 
-		symLink := filepath.Join(TargetDir, pbInLink)
+		symLink := ToUnixSlash(filepath.Join(TargetDir, pbInLink))
 
 		var srcFile string
 		if pre == "RAW::" {
@@ -584,7 +477,7 @@ func pbFileDirSymlinkSave(pbIn *pb.File) (respStatus int32) {
 			srcFile = filepath.Join(TargetDir, strings.TrimPrefix(pbInFile, "SUB::"))
 		}
 
-		DebugInfo("symlink", pre, " => ", symLink, " => ", srcFile)
+		DebugInfo("pbFileDirSymlinkSave:symlink", pre, " => ", symLink, " => ", srcFile)
 		MakeDirs(filepath.Dir(symLink))
 		MakeSymlink(srcFile, symLink)
 

@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	pb "pb"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -22,7 +21,7 @@ func pbHeadSourceFiles() error {
 	var createCount int = 0
 	var updateCount int = 0
 	var fileHash map[string]string = make(map[string]string, 256)
-	fextMatch = regexp.MustCompile("(?i)" + FileExt)
+
 	SourceDir = ToUnixSlash(SourceDir)
 	filepath.WalkDir(SourceDir, func(fpath string, dirInfo fs.DirEntry, err error) error {
 		if err != nil {
@@ -46,10 +45,8 @@ func pbHeadSourceFiles() error {
 		}
 
 		if dirInfo.IsDir() {
-			if IsIgnoreEmptyFolder == false {
-				dirList[fpath], err = dirInfo.Info()
-				PrintError("pbHeadSourceFiles: dirInfo.Info", err)
-			}
+			dirList[fpath], err = dirInfo.Info()
+			PrintError("pbHeadSourceFiles: dirInfo.Info", err)
 			return nil
 		}
 
@@ -66,11 +63,11 @@ func pbHeadSourceFiles() error {
 
 	pbFile := NewPbFile()
 	pbFile.Ftype = []byte("FileHashList")
-	pbFile.Data = MapStr2Byte(fileHash)
+	pbFile.Data = ZstdBytes(MapStr2Byte(fileHash))
 	pbFile.Fsum = nil
 	resp, err := gClient.Head(context.Background(), &pbFile)
 
-	PrintlnInfo("green", "pbFile.Data Size: ", len(pbFile.Data))
+	PrintlnInfo("green", "FileHashList Size: ", len(pbFile.Data))
 	if err != nil {
 		PrintError("pbHeadSourceFiles: gClient.Head", err)
 		return err
@@ -79,7 +76,13 @@ func pbHeadSourceFiles() error {
 	var dhl map[string]string
 	var diffHashList map[string]string
 	if resp.Data != nil {
-		diffHashList, err = Byte2MapStr(resp.Data, dhl)
+		respData, err := UnZstdBytes(resp.Data)
+		if err != nil {
+			PrintError("pbHeadSourceFiles: UnZstdBytes", err)
+			return err
+		}
+
+		diffHashList, err = Byte2MapStr(respData, dhl)
 		if err != nil {
 			PrintError("pbHeadSourceFiles: Byte2MapStr", err)
 			return err
@@ -99,8 +102,6 @@ func pbHeadSourceFiles() error {
 		if shash == "404" {
 			if fsize < smallFileSize {
 				smallFileList = append(smallFileList, spath)
-			} else if fsize >= smallFileSize && fsize < mediumFileSize64 {
-				mediumFileList = append(mediumFileList, spath)
 			} else {
 				largeFileList = append(largeFileList, spath)
 			}
@@ -112,8 +113,6 @@ func pbHeadSourceFiles() error {
 			fsize := finfo.Size()
 			if fsize < smallFileSize {
 				smallFileList = append(smallFileList, spath)
-			} else if fsize >= smallFileSize && fsize < mediumFileSize64 {
-				mediumFileList = append(mediumFileList, spath)
 			} else {
 				largeFileList = append(largeFileList, spath)
 			}
@@ -128,16 +127,13 @@ func pbHeadSourceFiles() error {
 	DebugInfo("pbHeadSourceFiles: TotalCount", len(sendFileList))
 	PrintlnInfo("green", "--------------------------------------", "")
 	PrintlnInfo("green", "pbHeadSourceFiles: smallFileList", len(smallFileList))
-	PrintlnInfo("green", "pbHeadSourceFiles: mediumFileList", len(mediumFileList))
 	PrintlnInfo("green", "pbHeadSourceFiles: largeFileList", len(largeFileList))
 	PrintlnInfo("green", "pbHeadSourceFiles: symlinkList", len(symList))
 	PrintlnInfo("green", "--------------------------------------", "")
 
 	sort.Strings(smallFileList)
-	sort.Strings(mediumFileList)
 	sort.Strings(largeFileList)
 	dumpFileList(smallFileList, "rpcopy_send_smallFileList")
-	dumpFileList(mediumFileList, "rpcopy_send_mediumFileList")
 	dumpFileList(largeFileList, "rpcopy_send_largeFileList")
 	//
 	var dirs []string
@@ -157,73 +153,36 @@ func pbHeadSourceFiles() error {
 }
 
 func ClientSendSmallFileList() error {
-	var boltFileList []string
+	var zstdFileList []string
 	var bsize int64 = 0
-	var countBoltFileList int
+	var countZstdFileList int
 
 	for _, spath := range smallFileList {
 		bsize += sendFileList[spath]
-		if bsize < maxBoltSize {
-			boltFileList = append(boltFileList, spath)
+		if bsize < maxZipSize {
+			zstdFileList = append(zstdFileList, spath)
 		}
 
-		if bsize >= maxBoltSize {
-			DebugInfo("ClientSendSmallFileList: bsize", bsize>>20, " MB, MaxBoltSize= ", maxBoltSize>>20, " MB")
-			countBoltFileList = len(boltFileList)
-			atomic.AddInt32(&totalNum, int32(countBoltFileList))
+		if bsize >= maxZipSize {
+			DebugInfo("ClientSendSmallFileList: bsize", bsize>>20, " MB, MaxBoltSize= ", maxZipSize>>20, " MB")
+			countZstdFileList = len(zstdFileList)
+			atomic.AddInt32(&totalNum, int32(countZstdFileList))
 			atomic.AddInt64(&totalWriteSize, bsize)
-			err := createBolt(boltFileList, strings.Join([]string{"rpcopy_client.db", "bolt"}, "_"))
-			PrintError("ClientSendSmallFileList:createBolt", err)
-			boltFileList = boltFileList[:0]
+			err := createZip(zstdFileList, strings.Join([]string{"rpcopy_client.db", "bolt"}, "_"))
+			PrintError("ClientSendSmallFileList:createZip", err)
+			zstdFileList = zstdFileList[:0]
 			bsize = 0
 		}
 	}
 
-	if len(boltFileList) > 0 {
-		countBoltFileList = len(boltFileList)
-		err := createBolt(boltFileList, strings.Join([]string{"rpcopy_client.db", "bolt"}, "_"))
-		atomic.AddInt32(&totalNum, int32(countBoltFileList))
+	if len(zstdFileList) > 0 {
+		countZstdFileList = len(zstdFileList)
+		err := createZip(zstdFileList, strings.Join([]string{"rpcopy_client.db", "bolt"}, "_"))
+		atomic.AddInt32(&totalNum, int32(countZstdFileList))
 		atomic.AddInt64(&totalWriteSize, bsize)
-		PrintError("ClientSendSmallFileList:createBolt", err)
+		PrintError("ClientSendSmallFileList:createZip", err)
 	}
 	//
-
-	return nil
-}
-
-func ClientSendMediumFileList() error {
-	wg := sync.WaitGroup{}
-	var count int32 = 0
-	for _, spath := range mediumFileList {
-		fpath := ToUnixSlash(filepath.Join(SourceDir, spath))
-		finfo, err := os.Stat(fpath)
-		if err != nil {
-			PrintError("ClientSendMediumFileList", err)
-			continue
-		}
-
-		wg.Add(1)
-		go func(fpath string, finfo fs.FileInfo) error {
-			defer wg.Done()
-
-			atomic.AddInt32(&totalNum, 1)
-			atomic.AddInt64(&totalWriteSize, finfo.Size())
-
-			atomic.AddInt32(&count, 1)
-			pbFile := file2pbFile(fpath, finfo, "file")
-
-			//DebugInfo("ClientSendMediumFileList: Sending", fpath)
-			err = pbFileSend(fpath, pbFile)
-			atomic.AddInt32(&count, -1)
-			PrintError("ClientSendMediumFileList: pbFileChunkSend", err)
-			return nil
-		}(fpath, finfo)
-
-		if atomic.LoadInt32(&count) > int32(3) {
-			wg.Wait()
-		}
-	}
-	wg.Wait()
 
 	return nil
 }
@@ -256,7 +215,7 @@ func ClientSendLargeFileList() error {
 			return nil
 		}(fpath, finfo)
 
-		count++
+		atomic.AddInt32(&count, 1)
 
 		if atomic.LoadInt32(&count) > int32(2) {
 			wg.Wait()
@@ -337,6 +296,197 @@ func ClientGetReport() error {
 	failureWriter.Close()
 
 	DebugInfo("ClientGetReport", "Done.")
+
+	return nil
+}
+
+func ClientSendAllFiles() error {
+	pbHeadFile := NewPbFile()
+	pbHeadFile.Ftype = []byte("file")
+	pbHeadFile.Data = nil
+	pbHeadFile.Fsum = nil
+
+	wg := sync.WaitGroup{}
+	var count int32 = 0
+
+	SourceDir = ToUnixSlash(SourceDir)
+	filepath.WalkDir(SourceDir, func(fpath string, dirInfo fs.DirEntry, err error) error {
+		if err != nil {
+			PrintError("ClientSendAllFiles", err)
+			return err
+		}
+		fpath = ToUnixSlash(fpath)
+
+		if IsFollowSymlink == false {
+			if isSymlink(fpath) {
+				linkTo := getSymlink(fpath)
+				if linkTo != "" {
+					symList[fpath] = strings.Join([]string{"RAW", linkTo}, "::")
+					if strings.HasPrefix(linkTo, SourceDir) {
+						t1 := strings.TrimPrefix(linkTo, SourceDir)
+						symList[fpath] = strings.Join([]string{"SUB", t1}, "::")
+					}
+				}
+				return nil
+			}
+		}
+
+		if dirInfo.IsDir() {
+			dirList[fpath], err = dirInfo.Info()
+			PrintError("pbHeadSourceFiles: dirInfo.Info", err)
+
+			return nil
+		}
+
+		atomic.AddInt32(&totalNum, 1)
+		if isCopyNeeded(fpath, dirInfo) == false {
+			return nil
+		}
+
+		relPath := strings.TrimPrefix(strings.TrimPrefix(fpath, SourceDir), "/")
+		pbHeadFile.Path = []byte(relPath)
+		resp, err := gClient.Head(context.Background(), &pbHeadFile)
+
+		if err != nil {
+			PrintError("ClientSendAllFiles: gClient.Head", err)
+			return err
+		}
+
+		isSend := false
+
+		if resp.Status == 404 {
+			isSend = true
+		}
+
+		if resp.Status == 200 {
+			srcHash := hashFile(fpath)
+			dstHash := string(resp.Fsum)
+			if srcHash != dstHash {
+				isSend = true
+			}
+		}
+
+		if isSend {
+			finfo, err := dirInfo.Info()
+			if err != nil {
+				PrintError("ClientPsendAllFiles: dirInfo.Info", err)
+				return err
+			}
+
+			wg.Add(1)
+			go func(fpath string, finfo fs.FileInfo) error {
+				defer wg.Done()
+				//PrintlnInfo("white", "Sending", fpath)
+				pbFile := file2pbFile(fpath, finfo, "file")
+
+				atomic.AddInt64(&totalWriteSize, finfo.Size())
+				DebugInfo("ClientPsendAllFiles: Sending", fpath)
+
+				atomic.AddInt32(&count, 1)
+				err = pbFileChunkSend(fpath, pbFile)
+				atomic.AddInt32(&count, -1)
+				PrintError("ClientPsendAllFiles: pbFileChunkSend", err)
+				return nil
+			}(fpath, finfo)
+
+			atomic.AddInt32(&count, 1)
+		}
+
+		if atomic.LoadInt32(&count) > int32(8) {
+			wg.Wait()
+		}
+
+		return nil
+	})
+
+	wg.Wait()
+
+	return nil
+}
+
+func ClientDiffAllFiles() error {
+	var fileHash map[string]string = make(map[string]string, 256)
+	var diffCount int32 = 0
+
+	SourceDir = ToUnixSlash(SourceDir)
+	filepath.WalkDir(SourceDir, func(fpath string, dirInfo fs.DirEntry, err error) error {
+		if err != nil {
+			PrintError("ClientDiffAllFiles", err)
+			return err
+		}
+		fpath = ToUnixSlash(fpath)
+
+		if dirInfo.IsDir() {
+			return nil
+		}
+
+		atomic.AddInt32(&totalNum, 1)
+
+		relPath := strings.TrimPrefix(strings.TrimPrefix(fpath, SourceDir), "/")
+		fileHash[relPath] = ""
+
+		return nil
+	})
+
+	pbHeadFile := NewPbFile()
+	pbHeadFile.Ftype = []byte("FileHashList")
+	pbHeadFile.Data = ZstdBytes(MapStr2Byte(fileHash))
+	pbHeadFile.Fsum = nil
+
+	resp, err := gClient.Head(context.Background(), &pbHeadFile)
+
+	if err != nil {
+		PrintError("pbHeadSourceFiles: gClient.Head", err)
+		return err
+	}
+
+	PrintlnInfo("green", "pbHeadSourceFiles: FileHashList Size: ", len(pbHeadFile.Data))
+
+	var dhl map[string]string
+	var diffHashList map[string]string
+	if resp.Data != nil {
+		respData, err := UnZstdBytes(resp.Data)
+		if err != nil {
+			PrintError("pbHeadSourceFiles: UnZstdBytes", err)
+			return err
+		}
+
+		diffHashList, err = Byte2MapStr(respData, dhl)
+		if err != nil {
+			PrintError("pbHeadSourceFiles: Byte2MapStr", err)
+			return err
+		}
+	}
+
+	var diffFiles []string
+	for spath, shash := range diffHashList {
+		fpath := filepath.Join(SourceDir, spath)
+		_, err := os.Stat(fpath)
+		if err != nil {
+			PrintError("pbHeadSourceFiles: os.Stat", err)
+			continue
+		}
+		if shash == "404" {
+			diffFiles = append(diffFiles, spath)
+			continue
+		}
+
+		if shash != hashFile(fpath) {
+			diffFiles = append(diffFiles, spath)
+			continue
+		}
+
+	}
+
+	sort.Strings(diffFiles)
+
+	for _, spath := range diffFiles {
+		fmt.Printf("%s\n", spath)
+		diffCount++
+	}
+
+	fmt.Printf("Total: %d , Different: %d\n", atomic.LoadInt32(&totalNum), diffCount)
+	dumpFileList(diffFiles, "rpcopy_diff_DifferentFiles")
 
 	return nil
 }

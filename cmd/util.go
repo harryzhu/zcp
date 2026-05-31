@@ -207,12 +207,15 @@ func isPathValid(p string) bool {
 
 func PrintProgress() error {
 	flag := int32(0)
+
 	for {
 		flag = atomic.LoadInt32(&progressFlag)
-		if flag == 3 {
+		if flag == 2 {
 			break
 		}
+
 		time.Sleep(2 * time.Second)
+
 		curTotalNum := atomic.LoadInt32(&totalNum)
 		curTotalWriteSize := atomic.LoadInt64(&totalWriteSize)
 		if IsDebug == false {

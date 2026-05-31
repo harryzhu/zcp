@@ -48,13 +48,18 @@
 # --overwrite：如果服务器上已经存在了，是否允许客户端覆盖，默认为 true： 允许覆盖
 ```
 
-2） 在 `Machine B` 上面使用 `客户端` send 文件夹
+2） 在 `Machine B` 上面使用 `客户端` send / zipsend / diff 文件夹
 
 ```Bash
 ./rpcopy send --source-dir=/data/hadoop/logs/nn01 --host=192.168.0.33 --port=9527
 #
-# 客户端会将 --source-dir= 指定的 /data/hadoop/logs/nn01 文件夹下面所有文件逐一发送到服务端（192.168.0.33:9527）去保存
-# 服务器上的文件夹结构与客户端的将会一模一样
+# send 命令，会并行的一个一个的传送文件到服务端，占用内存小，适合局域网内网传输
+#
+./rpcopy zipsend --source-dir=/data/hadoop/logs/nn01 --host=192.168.0.33 --port=9527
+# zipsend 命令，适合大量小文件传送：小于32MB的文件会被先压缩打包成一个文件，然后一起发送给服务端，大于32MB的文件会直接发送给服务端
+# 小文件较多的场景下， zipsend 比 send 速度更快，但比 send 占用更多的内存和CPU资源（用于压缩）
+#
+
 #
 # --follow-symlink： 默认 false，只会复制软连接（如果服务端目标文件不存在，该软连接实质上无效），如果为 true， 则会复制链接到的整个目标文件
 # --follow-symlink=false： 适合于软连接指向的都是相对路径、没有跨分区文件指向、没有外部文件夹指向；在服务器上，同路径同名称的也是软连接；
@@ -77,6 +82,12 @@
 #
 #
 # --with-tls 是否启用TLS加密传输，默认不启用；该参数需要合格的服务器端、客户端证书同时有效。证书放在 cert 目录下，域名用户自定义，但文件夹结构、名称不能修改。
+#
+
+#
+./rpcopy diff --source-dir=/data/hadoop/logs/nn01 --host=192.168.0.33 --port=9527
+# 
+# 比较本地文件夹和服务端文件夹下的文件是否相同，结果会保存在日志文件夹：*_rpcopy_diff_DifferentFiles.txt
 #
 ```
 

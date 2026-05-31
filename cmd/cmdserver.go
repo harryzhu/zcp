@@ -12,30 +12,12 @@ var serverCmd = &cobra.Command{
 	Short: "",
 	Long:  ``,
 	PreRun: func(cmd *cobra.Command, args []string) {
-		//DebugInfo("serverCmd", "PreRun")
 		MakeDirs(TargetDir)
 		MakeDirs(LogDir)
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		//DebugInfo("serverCmd", "Run")
 		wg := sync.WaitGroup{}
-		wg.Add(5)
-		go func() {
-			defer wg.Done()
-			taskChanFile()
-		}()
-		go func() {
-			defer wg.Done()
-			taskChanFile1()
-		}()
-		go func() {
-			defer wg.Done()
-			taskChanFile2()
-		}()
-		go func() {
-			defer wg.Done()
-			taskChanFile3()
-		}()
+		wg.Add(1)
 
 		go func() {
 			defer wg.Done()

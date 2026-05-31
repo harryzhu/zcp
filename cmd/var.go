@@ -10,13 +10,12 @@ import (
 )
 
 const (
-	maxBoltSize int64 = 1 << 30
-	// < 8 MB :use boltdb
-	// >= 8 MB use rawfile
-	smallFileSize    int64 = 1 << 20
-	mediumFileSize64 int64 = 4 << 20
+	maxZipSize int64 = 3 << 30
+	// < smallFileSize MB :use zip
+	// >= smallFileSize MB use rawfile
+	smallFileSize int64 = 32 << 20
 	//
-	chunkSize int = 4 << 20
+	chunkSize int = 1 << 20
 	//
 	MaxMessageSize int    = 4 << 30
 	sepLine        string = "----------------------------------------------------------------"
@@ -28,25 +27,19 @@ var (
 	gClientStream pb.FileTransfer_StreamReceiveClient
 	gClientConn   *grpc.ClientConn
 	//
-	chanFile  chan *pb.File = make(chan *pb.File, 4)
-	chanFile1 chan *pb.File = make(chan *pb.File, 4)
-	chanFile2 chan *pb.File = make(chan *pb.File, 4)
-	chanFile3 chan *pb.File = make(chan *pb.File, 4)
-	//
 	safePbSaveStatus sync.Map
-	pbSaveStatus     map[string]string = make(map[string]string, 2048)
+	pbSaveStatus     map[string]string = make(map[string]string, 256)
 	progressFlag     int32             = 0
 	//
 	fextMatch *regexp.Regexp
 )
 
 var (
-	sendFileList   map[string]int64 = make(map[string]int64, 1024)
-	smallFileList  []string
-	mediumFileList []string
-	largeFileList  []string
-	dirList        map[string]fs.FileInfo = make(map[string]fs.FileInfo, 2048)
-	symList        map[string]string      = make(map[string]string, 256)
+	sendFileList  map[string]int64 = make(map[string]int64, 256)
+	smallFileList []string
+	largeFileList []string
+	dirList       map[string]fs.FileInfo = make(map[string]fs.FileInfo, 256)
+	symList       map[string]string      = make(map[string]string, 32)
 )
 
 var (

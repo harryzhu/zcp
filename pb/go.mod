@@ -2,10 +2,7 @@ module pb
 
 go 1.26.2
 
-require (
-	github.com/golang/protobuf v1.5.4
-	google.golang.org/grpc v1.80.0
-)
+require google.golang.org/grpc v1.80.0
 
 require (
 	golang.org/x/net v0.49.0 // indirect

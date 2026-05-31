@@ -8,19 +8,17 @@ import (
 )
 
 var (
-	IsDebug             bool
-	IsIgnoreDotFile     bool
-	IsIgnoreEmptyFolder bool
-	IsOverwrite         bool
-	IsZstdSend          bool
-	IsFollowSymlink     bool
-	MaxSize             int64
-	MinSize             int64
-	MaxSizeMB           int64
-	MinSizeMB           int64
-	MinAge              string
-	MaxAge              string
-	FileExt             string
+	IsDebug         bool
+	IsIgnoreDotFile bool
+	IsOverwrite     bool
+	IsFollowSymlink bool
+	MaxSize         int64
+	MinSize         int64
+	MaxSizeMB       int64
+	MinSizeMB       int64
+	MinAge          string
+	MaxAge          string
+	FileExt         string
 	//
 	SourceDir string
 	TargetDir string

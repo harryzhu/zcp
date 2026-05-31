@@ -24,7 +24,12 @@ func (s *FileTransferService) Head(ctx context.Context, pbIn *pb.File) (*pb.File
 	resp.Data = nil
 	if string(pbIn.Ftype) == "FileHashList" {
 		var m map[string]string
-		filehashlist, err := Byte2MapStr(pbIn.Data, m)
+		pbInData, err := UnZstdBytes(pbIn.Data)
+		if err != nil {
+			PrintError("Head: UnZstdBytes", err)
+			return &resp, err
+		}
+		filehashlist, err := Byte2MapStr(pbInData, m)
 		if err != nil {
 			PrintError("Head: Byte2MapStr", err)
 			return &resp, err
@@ -43,7 +48,7 @@ func (s *FileTransferService) Head(ctx context.Context, pbIn *pb.File) (*pb.File
 		}
 
 		resp.Ftype = []byte("FileHashList")
-		resp.Data = MapStr2Byte(diffHashList)
+		resp.Data = ZstdBytes(MapStr2Byte(diffHashList))
 		PrintlnInfo("green", "FileHashList: Size", len(resp.Data))
 		return &resp, nil
 	}
@@ -57,20 +62,6 @@ func (s *FileTransferService) Head(ctx context.Context, pbIn *pb.File) (*pb.File
 			resp.Status = 404
 			resp.Fsum = nil
 		}
-	}
-
-	return &resp, nil
-}
-
-func (s *FileTransferService) Put(ctx context.Context, pbIn *pb.File) (*pb.File, error) {
-	resp := NewPbFile()
-
-	statusCode, err := pbFileSave(pbIn)
-	if err != nil {
-		PrintError("Put", err)
-		safePbSaveStatus.Store(string(pbIn.Path), int64(500))
-	} else {
-		safePbSaveStatus.Store(string(pbIn.Path), int64(statusCode))
 	}
 
 	return &resp, nil
@@ -110,7 +101,6 @@ func (s *FileTransferService) PutMisc(ctx context.Context, pbIn *pb.Misc) (*pb.M
 	resp.Data = nil
 	switch pbIn.Mtype {
 	case "pbBolt":
-		//pbMiscBoltSave(pbIn)
 		resp.Data = nil
 	default:
 		DebugInfo("PutMisc", "cannot match Mtype")
@@ -125,21 +115,12 @@ func (s *FileTransferService) StreamReceive(stream pb.FileTransfer_StreamReceive
 	for {
 		pbIn, err := stream.Recv()
 		if err == io.EOF {
-			DebugInfo("StreamReceive", err)
-			//continue
+			//DebugInfo("StreamReceive", err)
 			return nil
 		}
 
-		if err != nil {
-			//PrintError("StreamReceive:err!=nil", err)
-			//return nil
-			continue
-		}
-
-		if pbIn == nil {
-			//PrintError("StreamReceive", NewError("pbIn==nil"))
-			//return nil
-			continue
+		if err != nil || pbIn == nil {
+			return nil
 		}
 
 		resp := emptyPbFile
@@ -148,19 +129,6 @@ func (s *FileTransferService) StreamReceive(stream pb.FileTransfer_StreamReceive
 
 		if reqType == "file" {
 			// DebugInfo("StreamReceive: file", pbIn.ChunkNum, "/", pbIn.Chunks)
-			// switch pbIn.ChanNum {
-			// case 0:
-			// 	chanFile <- pbIn
-			// case 1:
-			// 	chanFile1 <- pbIn
-			// case 2:
-			// 	chanFile2 <- pbIn
-			// case 3:
-			// 	chanFile3 <- pbIn
-			// default:
-			// 	chanFile <- pbIn
-			// }
-
 			getChanFileToDisk(pbIn)
 
 			continue

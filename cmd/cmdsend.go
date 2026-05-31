@@ -1,15 +1,18 @@
+/*
+Copyright © 2026 NAME HERE <EMAIL ADDRESS>
+*/
 package cmd
 
 import (
 	"fmt"
+	"regexp"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/spf13/cobra"
 )
 
-// sendCmd represents the send command
+// sendCmd represents the psend command
 var sendCmd = &cobra.Command{
 	Use:   "send",
 	Short: "",
@@ -23,9 +26,9 @@ var sendCmd = &cobra.Command{
 		if MaxSizeMB != -1 {
 			MaxSize = MaxSizeMB << 20
 		}
+		fextMatch = regexp.MustCompile("(?i)" + FileExt)
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		//DebugInfo("sendCmd", "Run")
 		var err error
 		if IsWithTLS {
 			err = SetTLSClientStreamConn()
@@ -37,38 +40,12 @@ var sendCmd = &cobra.Command{
 		serverHealthCheck()
 
 		timeStart = GetNowUnix()
-		pbHeadSourceFiles()
 		wg := sync.WaitGroup{}
-		wg.Add(4)
-
+		wg.Add(2)
 		go func() error {
 			defer wg.Done()
-			t1 := GetNowTime()
-			PrintlnInfo("green", "SendSmallFileList", "Start ...")
-			ClientSendSmallFileList()
-			PrintlnInfo("green", "SendSmallFileList", " Done ... Elapse: ", time.Since(t1))
-			atomic.AddInt32(&progressFlag, 1)
-			return nil
-		}()
-
-		go func() error {
-			defer wg.Done()
-			t1 := GetNowTime()
-			PrintlnInfo("cyan", "SendMediumFileList", "Start ...")
-			ClientSendMediumFileList()
-			DebugInfo("mediumFileList", mediumFileList)
-			PrintlnInfo("cyan", "SendMediumFileList", " Done ... Elapse: ", time.Since(t1))
-			atomic.AddInt32(&progressFlag, 1)
-			return nil
-		}()
-
-		go func() error {
-			defer wg.Done()
-			t1 := GetNowTime()
-			PrintlnInfo("blue", "SendLargeFileList", "Start ...")
-			ClientSendLargeFileList()
-			PrintlnInfo("blue", "SendLargeFileList", " Done ... Elapse: ", time.Since(t1))
-			atomic.AddInt32(&progressFlag, 1)
+			ClientSendAllFiles()
+			atomic.StoreInt32(&progressFlag, 2)
 			return nil
 		}()
 
@@ -89,7 +66,6 @@ var sendCmd = &cobra.Command{
 		PrintError("ClientSendFiles: CloseSend", err)
 		// close connection
 		gClientConn.Close()
-
 	},
 	PostRun: func(cmd *cobra.Command, args []string) {
 		timeStop = GetNowUnix()
@@ -107,13 +83,11 @@ var sendCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(sendCmd)
-	//
+
 	sendCmd.Flags().StringVar(&SourceDir, "source-dir", "", "source folder")
-	sendCmd.Flags().BoolVar(&IsZstdSend, "zstd", false, "if enable zstd compression, better for txt/pdf ...")
 	sendCmd.Flags().BoolVar(&IsFollowSymlink, "follow-symlink", false, "if copy the linked file rather than the symlink ...")
 	//
 	sendCmd.Flags().BoolVar(&IsIgnoreDotFile, "ignore-dot-file", false, "ignore the file if its file name starts with dot(.), i.e.: .DS_Store")
-	sendCmd.Flags().BoolVar(&IsIgnoreEmptyFolder, "ignore-empty-dir", true, "ignore the folder if it contains nothing")
 	//
 	sendCmd.Flags().StringVar(&FileExt, "ext", "", "file type filter, i.e.: .mp4 or .png or .(mp4|txt|png) ")
 	//
