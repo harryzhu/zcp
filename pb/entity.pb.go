@@ -29,16 +29,14 @@ const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 type File struct {
 	Status               int32    `protobuf:"varint,1,opt,name=status,proto3" json:"status,omitempty"`
 	Comment              []byte   `protobuf:"bytes,2,opt,name=comment,proto3" json:"comment,omitempty"`
-	ChanNum              int32    `protobuf:"varint,3,opt,name=chanNum,proto3" json:"chanNum,omitempty"`
-	Path                 []byte   `protobuf:"bytes,4,opt,name=path,proto3" json:"path,omitempty"`
-	Ftype                []byte   `protobuf:"bytes,5,opt,name=ftype,proto3" json:"ftype,omitempty"`
-	Finfo                []byte   `protobuf:"bytes,6,opt,name=finfo,proto3" json:"finfo,omitempty"`
-	Fsum                 []byte   `protobuf:"bytes,7,opt,name=fsum,proto3" json:"fsum,omitempty"`
-	Fsize                int64    `protobuf:"varint,8,opt,name=fsize,proto3" json:"fsize,omitempty"`
-	Chunks               int32    `protobuf:"varint,9,opt,name=chunks,proto3" json:"chunks,omitempty"`
-	ChunkNum             int32    `protobuf:"varint,10,opt,name=chunkNum,proto3" json:"chunkNum,omitempty"`
-	Zstd                 bool     `protobuf:"varint,11,opt,name=zstd,proto3" json:"zstd,omitempty"`
-	Data                 []byte   `protobuf:"bytes,12,opt,name=data,proto3" json:"data,omitempty"`
+	Path                 []byte   `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
+	Ftype                []byte   `protobuf:"bytes,4,opt,name=ftype,proto3" json:"ftype,omitempty"`
+	Finfo                []byte   `protobuf:"bytes,5,opt,name=finfo,proto3" json:"finfo,omitempty"`
+	Fsum                 []byte   `protobuf:"bytes,6,opt,name=fsum,proto3" json:"fsum,omitempty"`
+	Fsize                int64    `protobuf:"varint,7,opt,name=fsize,proto3" json:"fsize,omitempty"`
+	OffsetFrom           int64    `protobuf:"varint,8,opt,name=offsetFrom,proto3" json:"offsetFrom,omitempty"`
+	OffsetTo             int64    `protobuf:"varint,9,opt,name=offsetTo,proto3" json:"offsetTo,omitempty"`
+	Data                 []byte   `protobuf:"bytes,10,opt,name=data,proto3" json:"data,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -91,13 +89,6 @@ func (m *File) GetComment() []byte {
 	return nil
 }
 
-func (m *File) GetChanNum() int32 {
-	if m != nil {
-		return m.ChanNum
-	}
-	return 0
-}
-
 func (m *File) GetPath() []byte {
 	if m != nil {
 		return m.Path
@@ -133,25 +124,18 @@ func (m *File) GetFsize() int64 {
 	return 0
 }
 
-func (m *File) GetChunks() int32 {
+func (m *File) GetOffsetFrom() int64 {
 	if m != nil {
-		return m.Chunks
+		return m.OffsetFrom
 	}
 	return 0
 }
 
-func (m *File) GetChunkNum() int32 {
+func (m *File) GetOffsetTo() int64 {
 	if m != nil {
-		return m.ChunkNum
+		return m.OffsetTo
 	}
 	return 0
-}
-
-func (m *File) GetZstd() bool {
-	if m != nil {
-		return m.Zstd
-	}
-	return false
 }
 
 func (m *File) GetData() []byte {
@@ -224,29 +208,28 @@ func init() {
 func init() { proto.RegisterFile("entity.proto", fileDescriptor_cf50d946d740d100) }
 
 var fileDescriptor_cf50d946d740d100 = []byte{
-	// 341 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x7c, 0x92, 0xbf, 0x4e, 0xeb, 0x30,
-	0x18, 0xc5, 0xeb, 0x34, 0x6d, 0xd3, 0xef, 0xe6, 0x2e, 0xd6, 0x55, 0x65, 0x55, 0x57, 0xb9, 0x51,
-	0xa7, 0xdc, 0x25, 0xaa, 0x60, 0x64, 0x63, 0x00, 0x16, 0x10, 0x0a, 0x4c, 0x6c, 0x4e, 0xea, 0xa8,
-	0x11, 0xe4, 0x8f, 0x62, 0x07, 0xa9, 0x7d, 0x92, 0xf2, 0x46, 0x8c, 0x3c, 0x02, 0x2a, 0x2f, 0x82,
-	0xbe, 0xcf, 0x6d, 0x58, 0x10, 0xdb, 0xf9, 0x1d, 0x9f, 0x13, 0x1f, 0x59, 0x01, 0x5f, 0x55, 0xa6,
-	0x30, 0x9b, 0xb8, 0x69, 0x6b, 0x53, 0x73, 0xa7, 0x49, 0x17, 0x3b, 0x07, 0xdc, 0x8b, 0xe2, 0x49,
-	0xf1, 0x19, 0x8c, 0xb5, 0x91, 0xa6, 0xd3, 0x82, 0x85, 0x2c, 0x1a, 0x25, 0x07, 0xe2, 0x02, 0x26,
-	0x59, 0x5d, 0x96, 0xaa, 0x32, 0xc2, 0x09, 0x59, 0xe4, 0x27, 0x47, 0xa4, 0x93, 0xb5, 0xac, 0x6e,
-	0xba, 0x52, 0x0c, 0xa9, 0x72, 0x44, 0xce, 0xc1, 0x6d, 0xa4, 0x59, 0x0b, 0x97, 0x0a, 0xa4, 0xf9,
-	0x1f, 0x18, 0xe5, 0x66, 0xd3, 0x28, 0x31, 0x22, 0xd3, 0x02, 0xb9, 0x45, 0x95, 0xd7, 0x62, 0x7c,
-	0x70, 0x11, 0xb0, 0x9f, 0xeb, 0xae, 0x14, 0x13, 0xdb, 0x47, 0x4d, 0x49, 0x5d, 0x6c, 0x95, 0xf0,
-	0x42, 0x16, 0x0d, 0x13, 0x0b, 0xb8, 0x3a, 0x5b, 0x77, 0xd5, 0xa3, 0x16, 0x53, 0xbb, 0xda, 0x12,
-	0x9f, 0x83, 0x47, 0x0a, 0xc7, 0x01, 0x9d, 0xf4, 0x8c, 0x5f, 0xdf, 0x6a, 0xb3, 0x12, 0xbf, 0x42,
-	0x16, 0x79, 0x09, 0x69, 0xf4, 0x56, 0xd2, 0x48, 0xe1, 0xdb, 0x1b, 0x51, 0x2f, 0x96, 0xe0, 0x5e,
-	0x17, 0x3a, 0xc3, 0x9b, 0x4b, 0x5a, 0x8e, 0x0f, 0x33, 0x4d, 0x2c, 0xf4, 0x0d, 0xe7, 0xab, 0x71,
-	0xf2, 0xc2, 0xc0, 0xc7, 0xc7, 0xbc, 0x6f, 0x65, 0xa5, 0x73, 0xd5, 0xf2, 0xff, 0xf0, 0xfb, 0xce,
-	0xb4, 0x4a, 0x96, 0x89, 0xca, 0x54, 0xf1, 0xac, 0xb8, 0x17, 0x37, 0x69, 0x8c, 0x91, 0x79, 0xaf,
-	0x16, 0x83, 0x88, 0x2d, 0x19, 0xff, 0x0b, 0xee, 0x95, 0x92, 0xab, 0xef, 0x13, 0xfc, 0x1f, 0x4c,
-	0x2e, 0x95, 0xa1, 0x39, 0x64, 0xa3, 0x9a, 0xf7, 0xca, 0x06, 0x6e, 0xbb, 0x1f, 0x02, 0xe7, 0xb3,
-	0xd7, 0x7d, 0xc0, 0xde, 0xf6, 0x01, 0x7b, 0xdf, 0x07, 0x6c, 0xf7, 0x11, 0x0c, 0x1e, 0xdc, 0xf8,
-	0xac, 0x49, 0xd3, 0x31, 0xfd, 0x0b, 0xa7, 0x9f, 0x01, 0x00, 0x00, 0xff, 0xff, 0x8e, 0xc0, 0xd5,
-	0xa5, 0x1b, 0x02, 0x00, 0x00,
+	// 321 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x7c, 0x91, 0x3f, 0x4e, 0xf3, 0x40,
+	0x10, 0xc5, 0xb3, 0x89, 0xf3, 0x6f, 0x94, 0xaf, 0x19, 0x7d, 0x8a, 0x56, 0x11, 0x32, 0x51, 0x1a,
+	0x5c, 0x59, 0x08, 0x4a, 0x3a, 0x8a, 0x40, 0x83, 0x84, 0x4c, 0x2a, 0xba, 0x75, 0x32, 0x16, 0x96,
+	0xb0, 0xd7, 0xf2, 0x4e, 0x90, 0xc2, 0x45, 0xe0, 0x48, 0x94, 0x1c, 0x01, 0x99, 0x1b, 0x70, 0x02,
+	0xb4, 0xbb, 0xc1, 0x50, 0x20, 0xba, 0xf7, 0x7b, 0xf3, 0x9e, 0x66, 0xec, 0x85, 0x09, 0x95, 0x9c,
+	0xf3, 0x2e, 0xae, 0x6a, 0xcd, 0x1a, 0xbb, 0x55, 0xba, 0xf8, 0x10, 0x10, 0x2c, 0xf3, 0x7b, 0xc2,
+	0x29, 0x0c, 0x0c, 0x2b, 0xde, 0x1a, 0x29, 0xe6, 0x22, 0xea, 0x27, 0x7b, 0x42, 0x09, 0xc3, 0xb5,
+	0x2e, 0x0a, 0x2a, 0x59, 0x76, 0xe7, 0x22, 0x9a, 0x24, 0x5f, 0x88, 0x08, 0x41, 0xa5, 0xf8, 0x4e,
+	0xf6, 0x9c, 0xed, 0x34, 0xfe, 0x87, 0x7e, 0xc6, 0xbb, 0x8a, 0x64, 0xe0, 0x4c, 0x0f, 0xce, 0xcd,
+	0xcb, 0x4c, 0xcb, 0xfe, 0xde, 0xb5, 0x60, 0xfb, 0x99, 0xd9, 0x16, 0x72, 0xe0, 0xfb, 0x56, 0xbb,
+	0xa4, 0xc9, 0x1f, 0x49, 0x0e, 0xe7, 0x22, 0xea, 0x25, 0x1e, 0x30, 0x04, 0xd0, 0x59, 0x66, 0x88,
+	0x97, 0xb5, 0x2e, 0xe4, 0xc8, 0x8d, 0x7e, 0x38, 0x38, 0x83, 0x91, 0xa7, 0x95, 0x96, 0x63, 0x37,
+	0x6d, 0xd9, 0x6e, 0xd9, 0x28, 0x56, 0x12, 0xfc, 0x16, 0xab, 0x17, 0xc7, 0x10, 0x5c, 0xe5, 0x66,
+	0x6d, 0xb7, 0x15, 0xee, 0x5a, 0xfb, 0xc9, 0xe3, 0xc4, 0x43, 0xdb, 0xe8, 0x7e, 0x37, 0x4e, 0x9e,
+	0x04, 0x4c, 0xec, 0x6f, 0x5a, 0xd5, 0xaa, 0x34, 0x19, 0xd5, 0x78, 0x04, 0xff, 0x6e, 0xb8, 0x26,
+	0x55, 0x24, 0xb4, 0xa6, 0xfc, 0x81, 0x70, 0x14, 0x57, 0x69, 0x6c, 0x23, 0xb3, 0x56, 0x2d, 0x3a,
+	0x91, 0xc0, 0x03, 0x08, 0x2e, 0x49, 0x6d, 0x7e, 0x9f, 0xe3, 0x21, 0x0c, 0x2f, 0x88, 0xdd, 0x31,
+	0xce, 0xb6, 0x6a, 0xd6, 0x2a, 0x1f, 0xb8, 0xde, 0xfe, 0x11, 0x38, 0x9f, 0xbe, 0x34, 0xa1, 0x78,
+	0x6d, 0x42, 0xf1, 0xd6, 0x84, 0xe2, 0xf9, 0x3d, 0xec, 0xdc, 0x06, 0xf1, 0x59, 0x95, 0xa6, 0x03,
+	0xf7, 0xc6, 0xa7, 0x9f, 0x01, 0x00, 0x00, 0xff, 0xff, 0x44, 0x18, 0xca, 0xe9, 0xf3, 0x01, 0x00,
+	0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -286,7 +269,7 @@ func (c *fileTransferClient) StreamReceive(ctx context.Context, opts ...grpc.Cal
 
 type FileTransfer_StreamReceiveClient interface {
 	Send(*File) error
-	Recv() (*File, error)
+	CloseAndRecv() (*File, error)
 	grpc.ClientStream
 }
 
@@ -298,7 +281,10 @@ func (x *fileTransferStreamReceiveClient) Send(m *File) error {
 	return x.ClientStream.SendMsg(m)
 }
 
-func (x *fileTransferStreamReceiveClient) Recv() (*File, error) {
+func (x *fileTransferStreamReceiveClient) CloseAndRecv() (*File, error) {
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
 	m := new(File)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
@@ -367,7 +353,7 @@ func _FileTransfer_StreamReceive_Handler(srv interface{}, stream grpc.ServerStre
 }
 
 type FileTransfer_StreamReceiveServer interface {
-	Send(*File) error
+	SendAndClose(*File) error
 	Recv() (*File, error)
 	grpc.ServerStream
 }
@@ -376,7 +362,7 @@ type fileTransferStreamReceiveServer struct {
 	grpc.ServerStream
 }
 
-func (x *fileTransferStreamReceiveServer) Send(m *File) error {
+func (x *fileTransferStreamReceiveServer) SendAndClose(m *File) error {
 	return x.ServerStream.SendMsg(m)
 }
 
@@ -463,7 +449,6 @@ var _FileTransfer_serviceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "StreamReceive",
 			Handler:       _FileTransfer_StreamReceive_Handler,
-			ServerStreams: true,
 			ClientStreams: true,
 		},
 	},
@@ -499,65 +484,50 @@ func (m *File) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		copy(dAtA[i:], m.Data)
 		i = encodeVarintEntity(dAtA, i, uint64(len(m.Data)))
 		i--
-		dAtA[i] = 0x62
+		dAtA[i] = 0x52
 	}
-	if m.Zstd {
-		i--
-		if m.Zstd {
-			dAtA[i] = 1
-		} else {
-			dAtA[i] = 0
-		}
-		i--
-		dAtA[i] = 0x58
-	}
-	if m.ChunkNum != 0 {
-		i = encodeVarintEntity(dAtA, i, uint64(m.ChunkNum))
-		i--
-		dAtA[i] = 0x50
-	}
-	if m.Chunks != 0 {
-		i = encodeVarintEntity(dAtA, i, uint64(m.Chunks))
+	if m.OffsetTo != 0 {
+		i = encodeVarintEntity(dAtA, i, uint64(m.OffsetTo))
 		i--
 		dAtA[i] = 0x48
+	}
+	if m.OffsetFrom != 0 {
+		i = encodeVarintEntity(dAtA, i, uint64(m.OffsetFrom))
+		i--
+		dAtA[i] = 0x40
 	}
 	if m.Fsize != 0 {
 		i = encodeVarintEntity(dAtA, i, uint64(m.Fsize))
 		i--
-		dAtA[i] = 0x40
+		dAtA[i] = 0x38
 	}
 	if len(m.Fsum) > 0 {
 		i -= len(m.Fsum)
 		copy(dAtA[i:], m.Fsum)
 		i = encodeVarintEntity(dAtA, i, uint64(len(m.Fsum)))
 		i--
-		dAtA[i] = 0x3a
+		dAtA[i] = 0x32
 	}
 	if len(m.Finfo) > 0 {
 		i -= len(m.Finfo)
 		copy(dAtA[i:], m.Finfo)
 		i = encodeVarintEntity(dAtA, i, uint64(len(m.Finfo)))
 		i--
-		dAtA[i] = 0x32
+		dAtA[i] = 0x2a
 	}
 	if len(m.Ftype) > 0 {
 		i -= len(m.Ftype)
 		copy(dAtA[i:], m.Ftype)
 		i = encodeVarintEntity(dAtA, i, uint64(len(m.Ftype)))
 		i--
-		dAtA[i] = 0x2a
+		dAtA[i] = 0x22
 	}
 	if len(m.Path) > 0 {
 		i -= len(m.Path)
 		copy(dAtA[i:], m.Path)
 		i = encodeVarintEntity(dAtA, i, uint64(len(m.Path)))
 		i--
-		dAtA[i] = 0x22
-	}
-	if m.ChanNum != 0 {
-		i = encodeVarintEntity(dAtA, i, uint64(m.ChanNum))
-		i--
-		dAtA[i] = 0x18
+		dAtA[i] = 0x1a
 	}
 	if len(m.Comment) > 0 {
 		i -= len(m.Comment)
@@ -639,9 +609,6 @@ func (m *File) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovEntity(uint64(l))
 	}
-	if m.ChanNum != 0 {
-		n += 1 + sovEntity(uint64(m.ChanNum))
-	}
 	l = len(m.Path)
 	if l > 0 {
 		n += 1 + l + sovEntity(uint64(l))
@@ -661,14 +628,11 @@ func (m *File) Size() (n int) {
 	if m.Fsize != 0 {
 		n += 1 + sovEntity(uint64(m.Fsize))
 	}
-	if m.Chunks != 0 {
-		n += 1 + sovEntity(uint64(m.Chunks))
+	if m.OffsetFrom != 0 {
+		n += 1 + sovEntity(uint64(m.OffsetFrom))
 	}
-	if m.ChunkNum != 0 {
-		n += 1 + sovEntity(uint64(m.ChunkNum))
-	}
-	if m.Zstd {
-		n += 2
+	if m.OffsetTo != 0 {
+		n += 1 + sovEntity(uint64(m.OffsetTo))
 	}
 	l = len(m.Data)
 	if l > 0 {
@@ -789,25 +753,6 @@ func (m *File) Unmarshal(dAtA []byte) error {
 			}
 			iNdEx = postIndex
 		case 3:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ChanNum", wireType)
-			}
-			m.ChanNum = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEntity
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.ChanNum |= int32(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 4:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Path", wireType)
 			}
@@ -841,7 +786,7 @@ func (m *File) Unmarshal(dAtA []byte) error {
 				m.Path = []byte{}
 			}
 			iNdEx = postIndex
-		case 5:
+		case 4:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Ftype", wireType)
 			}
@@ -875,7 +820,7 @@ func (m *File) Unmarshal(dAtA []byte) error {
 				m.Ftype = []byte{}
 			}
 			iNdEx = postIndex
-		case 6:
+		case 5:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Finfo", wireType)
 			}
@@ -909,7 +854,7 @@ func (m *File) Unmarshal(dAtA []byte) error {
 				m.Finfo = []byte{}
 			}
 			iNdEx = postIndex
-		case 7:
+		case 6:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Fsum", wireType)
 			}
@@ -943,7 +888,7 @@ func (m *File) Unmarshal(dAtA []byte) error {
 				m.Fsum = []byte{}
 			}
 			iNdEx = postIndex
-		case 8:
+		case 7:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Fsize", wireType)
 			}
@@ -962,11 +907,11 @@ func (m *File) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
-		case 9:
+		case 8:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Chunks", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field OffsetFrom", wireType)
 			}
-			m.Chunks = 0
+			m.OffsetFrom = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowEntity
@@ -976,51 +921,31 @@ func (m *File) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Chunks |= int32(b&0x7F) << shift
+				m.OffsetFrom |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 9:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field OffsetTo", wireType)
+			}
+			m.OffsetTo = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEntity
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.OffsetTo |= int64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
 		case 10:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ChunkNum", wireType)
-			}
-			m.ChunkNum = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEntity
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.ChunkNum |= int32(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 11:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Zstd", wireType)
-			}
-			var v int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEntity
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				v |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			m.Zstd = bool(v != 0)
-		case 12:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Data", wireType)
 			}

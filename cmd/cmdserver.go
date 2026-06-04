@@ -1,9 +1,17 @@
+/*
+Copyright © 2026 NAME HERE <EMAIL ADDRESS>
+*/
 package cmd
 
 import (
-	"sync"
+	"fmt"
 
 	"github.com/spf13/cobra"
+)
+
+var (
+	TargetDir   string
+	IsOverwrite bool
 )
 
 // serverCmd represents the server command
@@ -12,29 +20,27 @@ var serverCmd = &cobra.Command{
 	Short: "",
 	Long:  ``,
 	PreRun: func(cmd *cobra.Command, args []string) {
-		MakeDirs(TargetDir)
-		MakeDirs(LogDir)
+		if !Exists(TargetDir) {
+			MakeDirs(TargetDir)
+		}
+		PrintlnInfo("white", "target-dir", TargetDir)
+		PrintlnInfo("white", "log-dir", LogDir)
+		PrintlnInfo("white", "allow-overwrite", IsOverwrite)
+		fmt.Println(sepLine)
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		wg := sync.WaitGroup{}
-		wg.Add(1)
-
-		go func() {
-			defer wg.Done()
-			if IsWithTLS {
-				PrintlnInfo("blue", "try to enable TLS mode")
-				StartTLSFileTransferServer()
-			} else {
-				StartFileTransferServer()
-			}
-		}()
-		wg.Wait()
-
+		if IsWithTLS {
+			PrintlnInfo("white", "try to enable TLS mode")
+			StartTLSFileTransferServer()
+		} else {
+			StartFileTransferServer()
+		}
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(serverCmd)
+	//
 	rootCmd.MarkFlagRequired("host")
 	rootCmd.MarkFlagRequired("port")
 	rootCmd.MarkFlagRequired("log-dir")

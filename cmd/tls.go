@@ -14,51 +14,72 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-func SetClientStreamConn() (err error) {
+var gClientConn *grpc.ClientConn
+
+func GetClientStream() pb.FileTransfer_StreamReceiveClient {
+	client := GetClient()
+
+	clientStream, err := client.StreamReceive(context.Background())
+	FatalError("GetClientStream", err)
+
+	return clientStream
+}
+
+func GetClient() pb.FileTransferClient {
+	var client pb.FileTransferClient
+	if IsWithTLS {
+		client = _getTLSClient()
+	} else {
+		client = _getClient()
+	}
+	return client
+}
+
+func _getClient() pb.FileTransferClient {
+	client := pb.NewFileTransferClient(gClientConn)
+	if client == nil {
+		FatalError("GetClient", NewError("gClient cannot be empty"))
+	}
+
+	return client
+}
+
+func _getTLSClient() pb.FileTransferClient {
+	client := pb.NewFileTransferClient(gClientConn)
+	if client == nil {
+		FatalError("GetTLSClient", NewError("client cannot be empty"))
+	}
+
+	return client
+}
+
+func _buildGrpcClientConn() *grpc.ClientConn {
 	hostPort := strings.Join([]string{Host, Port}, ":")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	gClientConn, err = grpc.DialContext(ctx, hostPort,
+	clientConn, err := grpc.DialContext(ctx, hostPort,
 		grpc.WithInsecure(),
 		grpc.WithBlock(),
-		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxMessageSize), grpc.MaxCallSendMsgSize(MaxMessageSize)))
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(maxGrpcMessageSize), grpc.MaxCallSendMsgSize(maxGrpcMessageSize)))
 
-	if err != nil {
-		PrintError("ClientSendFiles", err)
-		return err
-	}
+	FatalError("_buildGrpcClientConn", err)
 
-	//defer gClientConn.Close()
-
-	gClient = pb.NewFileTransferClient(gClientConn)
-	if gClient == nil {
-		return NewError("gClient cannot be empty")
-	}
-
-	gClientStream, err = gClient.StreamReceive(context.Background())
-	if err != nil {
-		PrintError("ClientSendFiles", err)
-		return err
-	}
-
-	return nil
+	return clientConn
 }
 
-func SetTLSClientStreamConn() (err error) {
+func _buildGrpcTLSClientConn() *grpc.ClientConn {
+	hostPort := strings.Join([]string{Host, Port}, ":")
+
 	certificate, err := tls.LoadX509KeyPair("cert/client/client.crt", "cert/client/client.key")
-	if err != nil {
-		FatalError("SetTLSClientStreamConn:tls.LoadX509KeyPair", err)
-	}
+	FatalError("gClientConn: init:tls.LoadX509KeyPair", err)
 
 	certPool := x509.NewCertPool()
 	ca, err := os.ReadFile("cert/ca.crt")
-	if err != nil {
-		FatalError("SetTLSClientStreamConn:os.ReadFile", err)
-	}
+	FatalError("gClientConn: init:os.ReadFile", err)
 
 	if ok := certPool.AppendCertsFromPEM(ca); !ok {
-		FatalError("SetTLSClientStreamConn:os.ReadFile", NewError("certPool.AppendCertsFromPEM"))
+		FatalError("gClientConn: init:os.ReadFile", NewError("certPool.AppendCertsFromPEM"))
 	}
 
 	opts := []grpc.DialOption{
@@ -68,31 +89,13 @@ func SetTLSClientStreamConn() (err error) {
 				Certificates: []tls.Certificate{certificate},
 				RootCAs:      certPool,
 			})),
-		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxMessageSize), grpc.MaxCallSendMsgSize(MaxMessageSize)),
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(maxGrpcMessageSize), grpc.MaxCallSendMsgSize(maxGrpcMessageSize)),
 	}
 
-	hostPort := strings.Join([]string{Host, Port}, ":")
+	clientConn, err := grpc.Dial(hostPort, opts...)
+	FatalError("gClientConn: init", err)
 
-	gClientConn, err = grpc.Dial(hostPort, opts...)
-
-	if err != nil {
-		FatalError("SetTLSClientStreamConn", err)
-	}
-
-	//defer gClientConn.Close()
-
-	gClient = pb.NewFileTransferClient(gClientConn)
-	if gClient == nil {
-		return NewError("gClient cannot be empty")
-	}
-
-	gClientStream, err = gClient.StreamReceive(context.Background())
-	if err != nil {
-		PrintError("ClientSendFiles", err)
-		return err
-	}
-
-	return nil
+	return clientConn
 }
 
 func StartFileTransferServer() {
@@ -105,9 +108,9 @@ func StartFileTransferServer() {
 	}
 
 	grpcServerFileTransfer := grpc.NewServer(
-		grpc.MaxMsgSize(MaxMessageSize),
-		grpc.MaxRecvMsgSize(MaxMessageSize),
-		grpc.MaxSendMsgSize(MaxMessageSize))
+		grpc.MaxMsgSize(maxGrpcMessageSize),
+		grpc.MaxRecvMsgSize(maxGrpcMessageSize),
+		grpc.MaxSendMsgSize(maxGrpcMessageSize))
 
 	pb.RegisterFileTransferServer(grpcServerFileTransfer, &FileTransferService{})
 
@@ -137,17 +140,17 @@ func StartTLSFileTransferServer() {
 			ClientCAs:    certPool,
 		},
 		)),
-		grpc.MaxMsgSize(MaxMessageSize),
-		grpc.MaxRecvMsgSize(MaxMessageSize),
-		grpc.MaxSendMsgSize(MaxMessageSize),
+		grpc.MaxMsgSize(maxGrpcMessageSize),
+		grpc.MaxRecvMsgSize(maxGrpcMessageSize),
+		grpc.MaxSendMsgSize(maxGrpcMessageSize),
 	}
 
 	hostPort := strings.Join([]string{Host, Port}, ":")
 	listening, err := net.Listen("tcp", hostPort)
 	if err != nil {
-		FatalError("StartFileTransferServer: ", err)
+		FatalError("StartTLSFileTransferServer", err)
 	} else {
-		PrintlnInfo("Endpoint RPC: ", hostPort)
+		PrintlnInfo("green", "Endpoint RPC: ", hostPort)
 	}
 
 	grpcServerFileTransfer := grpc.NewServer(opts...)

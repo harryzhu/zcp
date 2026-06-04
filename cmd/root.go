@@ -1,64 +1,63 @@
+/*
+Copyright © 2026 NAME HERE <EMAIL ADDRESS>
+*/
 package cmd
 
 import (
+	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
 )
 
 var (
-	IsDebug         bool
-	IsIgnoreDotFile bool
-	IsOverwrite     bool
-	IsFollowSymlink bool
-	MaxSize         int64
-	MinSize         int64
-	MaxSizeMB       int64
-	MinSizeMB       int64
-	MinAge          string
-	MaxAge          string
-	FileExt         string
-	//
-	SourceDir string
-	TargetDir string
-	LogDir    string
-
-	//
+	IsDebug   bool
 	Host      string
 	Port      string
 	IsWithTLS bool
-)
-
-var (
-	minAge64 int64
-	maxAge64 int64
-)
-
-var (
-	timeStart int64
-	timeStop  int64
+	LogDir    string
+	//
 )
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "rpcopy",
+	Use:   "zcp",
 	Short: "",
 	Long:  ``,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		//DebugInfo("rootCmd", "PersistentPreRun")
+		if LogDir != "" {
+			LogDir = filepath.Join(LogDir, GetNowTimeStr("Ymd"))
+		}
 		SourceDir = strings.TrimRight(ToUnixSlash(SourceDir), "/")
 		TargetDir = strings.TrimRight(ToUnixSlash(TargetDir), "/")
+		LogDir = strings.TrimRight(ToUnixSlash(LogDir), "/")
+
+		if LogDir != "" {
+			MakeDirs(LogDir)
+		}
 		timeStart = GetNowUnix()
-	},
-	Run: func(cmd *cobra.Command, args []string) {
-		//DebugInfo("rootCmd", "Run")
 	},
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
 		//DebugInfo("rootCmd", "PersistentPostRun")
 		timeStop = GetNowUnix()
 		timeDuration = timeStop - timeStart
-		PrintlnInfo("Cyan", "rpcopy: elapse(sec)", Int64Str(timeDuration))
+		fmt.Println(sepLine)
+
+		res := ""
+		if timeDuration > 0 {
+			speed := int64(float64(totalWriteSize) / float64(timeDuration))
+			res = fmt.Sprintf("Total: %v, Size: %v MB, Speed: %v MB/s\n",
+				totalNum, totalWriteSize>>20, speed>>20)
+		} else {
+			res = fmt.Sprintf("Total: %v, Size: %v MB\n",
+				totalNum, totalWriteSize>>20)
+		}
+
+		fmt.Println(Cyan(res))
+		PrintlnInfo("white", "zcp: Elapse(sec)", Int64Str(timeDuration))
 	},
 }
 

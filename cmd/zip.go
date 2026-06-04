@@ -6,21 +6,22 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/klauspost/compress/zstd"
 )
 
-func createZip(filelist []string, dbName string) (err error) {
-	dbPath, _ := filepath.Abs(filepath.Join(LogDir, hashString([]byte(dbName))))
-	if FileExists(dbPath) {
-		err := os.Remove(dbPath)
+func createZip(filelist []string, zname string) (err error) {
+	zpath := ToUnixSlash(filepath.Join(LogDir, hashString([]byte(zname))))
+	if Exists(zpath) {
+		err := os.Remove(zpath)
 		PrintError("createZip:os.Remove", err)
 		return err
 	}
 
-	DebugInfo("createZip", dbPath)
-	zipFileHandler, err := os.Create(dbPath)
+	DebugInfo("createZip", zpath)
+	zipFileHandler, err := os.Create(zpath)
 	if err != nil {
 		PrintError("createZip", err)
 		return err
@@ -73,6 +74,9 @@ func createZip(filelist []string, dbName string) (err error) {
 			}
 			_, err = io.Copy(w, fp)
 
+			atomic.AddInt32(&totalNum, 1)
+			atomic.AddInt64(&totalWriteSize, finfo.Size())
+
 			if err != nil {
 				PrintError("createZip:io.Copy:"+fpath, err)
 				continue
@@ -84,26 +88,29 @@ func createZip(filelist []string, dbName string) (err error) {
 
 	zw.Close()
 
-	finfo, err = os.Stat(dbPath)
+	finfo, err = os.Stat(zpath)
 	if err != nil {
 		PrintError("createZip:os.Stat", err)
 		return err
 	}
 
-	PrintlnInfo("green", "createZip: Elapse", time.Since(t1), ", Size: ", finfo.Size()>>20, "MB")
+	PrintlnInfo("green", "createZip",
+		"Elapse: ", time.Since(t1),
+		", Files: ", len(filelist),
+		", Zip: ", finfo.Size()>>20, "MB")
 
-	pbFile := file2pbFile(dbPath, finfo, "bolt")
+	pbFile := file2pbFile(zpath, "zip")
 
 	t1 = GetNowTime()
-	err = pbBoltSend(dbPath, pbFile)
+	err = gClientStreamSend(zpath, pbFile)
 	if err != nil {
-		PrintError("createZip:pbFileChunkSend", err)
+		PrintError("createZip:gClientStreamSend", err)
 		return err
 	}
 	PrintlnInfo("green", "createZip:send: Elapse", time.Since(t1))
 
-	if FileExists(dbPath) {
-		err := os.Remove(dbPath)
+	if Exists(zpath) {
+		err := os.Remove(zpath)
 		PrintError("createZip:os.Remove", err)
 		return err
 	}

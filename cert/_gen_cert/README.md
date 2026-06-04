@@ -15,7 +15,7 @@
 
 ```
 
-2） 修改 `openssl.conf`， 将最后一行 `DNS.1 = files.rpcopy.com` 修改为你自己的域名 `DNS.1 = 你的域名`
+2） 修改 `openssl.conf`， 将最后一行 `DNS.1 = files.zcp.corpnet` 修改为你自己的域名 `DNS.1 = 你的域名`
 
 ```Bash
 #
@@ -44,7 +44,7 @@ USER_DOMAIN="your.domain.name"
 5）带参数 `--with-tls` 启动 `rpcopy send` 客户端
 
 ```Bash
-./rpcopy send --source-dir=/logs/nn01  --host="your.domain.name" --with-tls
+./rpcopy push --source-dir=/logs/nn01  --host="your.domain.name" --with-tls
 
 ```
 

@@ -9,8 +9,7 @@ import (
 
 func FatalError(prefix string, err error) {
 	if err != nil {
-		log.Println(Red("ERROR:"), Red(prefix), err)
-		log.Fatal(err)
+		log.Fatal(Red(strings.Join([]string{"ERROR", prefix, ""}, ": ")), err)
 	}
 }
 

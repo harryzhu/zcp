@@ -1,5 +1,5 @@
 #
-USER_DOMAIN="files.rpcopy.com"
+USER_DOMAIN="files.zcp.corpnet"
 #
 # 1) change USER_DOMAIN to your own domain
 # 2) open openssl.conf, chane the last line: DNS.1 = your own domain (same as USER_DOMAIN)

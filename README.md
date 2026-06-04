@@ -1,36 +1,36 @@
-# rpcopy
+# zcp
 
 跨机器文件夹RPC复制工具,支持 TLS 安全加密传输
 
 适合通过 `RPC` 在`Windows`和`Linux`、`Mac`中批量中转文件，无需每台机器配置共享文件夹
 
-功能类似于 `scp` （无需ssh账号），但是支持 windows、linux、mac 互传，支持筛选文件，支持压缩
+功能类似于 `scp` （无需ssh账号），但是支持 windows、linux、mac 互传，支持筛选文件，支持zstd压缩
 
-`rpcopy` 会`限定目录`，远程复制过来的文件必须放在`指定根目录`下。
+`zcp` 会`限定目录`，远程复制过来的文件必须放在`指定根目录`下。
 
 ## Performance
 
 
-| test data（Wi-Fi 5 传输） |    rpcopy     |    scp  |
+| test data（Wi-Fi 5 传输） |    zcp     |    scp  |
 |--------------------------|---------------|---------|
 | 4518 个文件，共 10644 MB   |     363 秒    |  2211 秒 |
 
 
 
 
-| 6103 个文件，14363 MB     |    rpcopy    |    scp   |
+| 6103 个文件，14363 MB     |    zcp    |    scp   |
 |--------------------------|---------------|---------|
 | 1000MB有线网卡 传输        |     134 秒    |  166 秒  |
 
 
 
-`rpcopy` 在 `mac` 或 `Linux` 上表现要优于在 `windows`上。
+`zcp` 在 `mac` 或 `Linux` 上表现要优于在 `windows`上。
 
-上述测试，从 `windows` rpcopy 到 `mac`，需要`134秒`，从 `mac` rpcopy 到 `windows` 只需要 `96秒`
+上述测试，从 `windows` zcp 到 `mac`，需要`134秒`，从 `mac` zcp 到 `windows` 只需要 `96秒`
 
 
 
-![RPCOPY](nic-rpcopy.jpg "rpcopy")
+![ZCP](nic-zcp.jpg "zcp")
 
 
 ![SCP](nic-scp.jpg "scp")
@@ -40,24 +40,21 @@
 1） 在 `Machine A` 上面启动 `server` 端
 
 ```Bash
-./rpcopy server --target-dir=/Volumes/SSD256/logs/nn01 --host=192.168.0.33 --port=9527
+./zcp server --target-dir=/Volumes/SSD256/logs/nn01 --host=192.168.0.33 --port=9527
 #
 # 服务端会将所有收到的文件保存在 --target-dir= 指定的 /Volumes/SSD256/logs/nn01 文件夹下面
 # 文件夹结构与传输进来的一致
 #
 # --overwrite：如果服务器上已经存在了，是否允许客户端覆盖，默认为 true： 允许覆盖
+#
 ```
 
-2） 在 `Machine B` 上面使用 `客户端` send / zipsend / diff 文件夹
+2） 在 `Machine B` 上面使用 `客户端` push / diff 文件夹
 
 ```Bash
-./rpcopy send --source-dir=/data/hadoop/logs/nn01 --host=192.168.0.33 --port=9527
+./zcp push --source-dir=/data/hadoop/logs/nn01 --host=192.168.0.33 --port=9527
 #
-# send 命令，会并行的一个一个的传送文件到服务端，占用内存小，适合局域网内网传输
-#
-./rpcopy zipsend --source-dir=/data/hadoop/logs/nn01 --host=192.168.0.33 --port=9527
-# zipsend 命令，适合大量小文件传送：小于32MB的文件会被先压缩打包成一个文件，然后一起发送给服务端，大于32MB的文件会直接发送给服务端
-# 小文件较多的场景下， zipsend 比 send 速度更快，但比 send 占用更多的内存和CPU资源（用于压缩）
+# push 命令，超过32MB的大文件会并行的一个一个的传送文件到服务端，小于32MB的小文件会被分批压缩打包再传送到服务端解压缩
 #
 
 #
@@ -65,11 +62,8 @@
 # --follow-symlink=false： 适合于软连接指向的都是相对路径、没有跨分区文件指向、没有外部文件夹指向；在服务器上，同路径同名称的也是软连接；
 # --follow-symlink=true： 适合于软连接指向路径不确定性多，更期待于直接将文件本身保存的情况；在服务器上，同路径同名称的是实际文件， 而不是软连接；
 #
-# --zstd： 是否启用zstd压缩，默认为 false，对于文本类文件，启用该选项可以极大降低网络传输量，在一些带宽受限的场景收益颇高；视频等压缩率极低的文件不宜启用；
-#
 # 过滤文件夹下的文件，按需复制：
 # --ignore-dot-file： 是否忽略点(.)开头的文件, 如： .DS_Store
-# --ignore-empty-dir：是否忽略空文件夹
 # --log-dir：发送文件在服务端接收的结果报告，按日期分为保存成功的（_success.log)和保存失败的（_failure.log)文件列表
 #
 # --ext：只拷贝指定后缀名的文件， .mp4 只拷贝 mp4 文件， .png 只拷贝 png 图片， .(mp4|txt|png)同时拷贝 mp4、txt、png三类文件
@@ -85,15 +79,15 @@
 #
 
 #
-./rpcopy diff --source-dir=/data/hadoop/logs/nn01 --host=192.168.0.33 --port=9527
+./zcp diff --source-dir=/data/hadoop/logs/nn01 --host=192.168.0.33 --port=9527
 # 
-# 比较本地文件夹和服务端文件夹下的文件是否相同，结果会保存在日志文件夹：*_rpcopy_diff_DifferentFiles.txt
+# 比较本地文件夹和服务端文件夹下的文件是否相同，结果会保存在日志文件夹：zcp_different_files.txt
 #
 ```
 
 3） TLS 加密传输
 
-下载默认的服务端和客户端证书，`cert_files_rpcopy_com.zip`， 并将其解压在与 `rcopy` 同级目录的 `cert` 目录中，一共`5个证书`。
+下载默认的服务端和客户端证书，`cert_files_zcp_corpnet.zip`， 并将其解压在与 `zcp` 同级目录的 `cert` 目录中，一共`5个证书`。
 
 或者用 仓库 中 `cert/_gen_cert/gen_cert.sh` 生成自己的域名证书, 需要先修改 `gen_cert.sh` 和 `openssl.conf` 中的域名，然后再运行 `./gen_cert.sh`
 
@@ -106,21 +100,21 @@
 启动服务端
 
 ```Bash
-./rpcopy server --target-dir=/Volumes/SSD256/logs/nn01 --host="files.rpcopy.com" --port=9527  --with-tls
+./zcp server --target-dir=/Volumes/SSD256/logs/nn01 --host="files.zcp.corpnet" --port=9527  --with-tls
 
 ```
 
-在客户端需要修改 `/etc/hosts` 将域名指向你的服务端IP
+在客户端、服务端需要修改 `/etc/hosts` 将域名指向你的服务端IP
 
 ```Bash
-192.168.0.123   files.rpcopy.com
+192.168.0.123   files.zcp.corpnet
 
 ```
 
 启动客户端
 
 ```Bash
-./rpcopy send --source-dir=/data/hadoop/logs/nn01 --host="files.rpcopy.com" --port=9527  --with-tls
+./zcp send --source-dir=/data/hadoop/logs/nn01 --host="files.zcp.corpnet" --port=9527  --with-tls
 
 ```
 

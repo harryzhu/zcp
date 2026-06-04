@@ -2,8 +2,6 @@ package cmd
 
 import (
 	"bufio"
-	"bytes"
-	"encoding/gob"
 	"encoding/hex"
 	"fmt"
 	"hash"
@@ -13,11 +11,15 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/klauspost/compress/zstd"
 	"github.com/zeebo/xxh3"
+)
+
+const (
+	// for func IsPathValid
+	PathBanSymbols string = `:\\*\">?<|`
 )
 
 func ToUnixSlash(s string) string {
@@ -25,7 +27,7 @@ func ToUnixSlash(s string) string {
 	return strings.ReplaceAll(s, "\\", "/")
 }
 
-func FileExists(fpath string) bool {
+func Exists(fpath string) bool {
 	_, err := os.Stat(fpath)
 	if err != nil {
 		return false
@@ -82,46 +84,6 @@ func hashString(b []byte) string {
 	hasher.Write(b)
 
 	return hex.EncodeToString(hasher.Sum(nil))
-}
-
-func MapStr2Byte(m map[string]string) []byte {
-	var buf bytes.Buffer
-	enc := gob.NewEncoder(&buf)
-	err := enc.Encode(&m)
-	PrintError("MapStr2Byte", err)
-	return buf.Bytes()
-}
-
-func Byte2MapStr(b []byte, m map[string]string) (map[string]string, error) {
-	buf := bytes.NewBuffer(b)
-	dec := gob.NewDecoder(buf)
-	err := dec.Decode(&m)
-	if err != nil {
-		PrintError("Byte2MapStr: gob.NewDecoder", err)
-		return m, err
-	}
-	return m, nil
-}
-
-func Int2Str(n int) string {
-	return strconv.Itoa(n)
-}
-
-func Int32Str(n int32) string {
-	return fmt.Sprintf("%v", n)
-}
-
-func Int64Int(n int64) int {
-	n10, err := strconv.Atoi(strconv.FormatInt(n, 10))
-	if err != nil {
-		PrintError("Int64Int", err)
-		return 0
-	}
-	return n10
-}
-
-func Int64Str(n int64) string {
-	return fmt.Sprintf("%v", n)
 }
 
 func MakeDirs(dpath string) error {
@@ -196,38 +158,28 @@ func TimeStr2Unix(s string) int64 {
 	return parsedTime.Unix()
 }
 
-func isPathValid(p string) bool {
-	//ban := []string{":", "\\",  "\"", "*", "?", "<", ">", "|"}
-	ban := `:\\*\">?<|`
-	if strings.ContainsAny(p, ban) {
-		return false
-	}
-	return true
+func Int2Str(n int) string {
+	return strconv.Itoa(n)
 }
 
-func PrintProgress() error {
-	flag := int32(0)
-
-	for {
-		flag = atomic.LoadInt32(&progressFlag)
-		if flag == 2 {
-			break
-		}
-
-		time.Sleep(2 * time.Second)
-
-		curTotalNum := atomic.LoadInt32(&totalNum)
-		curTotalWriteSize := atomic.LoadInt64(&totalWriteSize)
-		if IsDebug == false {
-			PrintSpinner2(strings.Join([]string{Int32Str(curTotalNum), " => "}, ""),
-				strings.Join([]string{Int64Str(curTotalWriteSize >> 20), " MB"}, ""))
-		}
-	}
-
-	return nil
+func Int32Str(n int32) string {
+	return fmt.Sprintf("%v", n)
 }
 
-func isSymlink(src string) bool {
+func Int64Int(n int64) int {
+	n10, err := strconv.Atoi(strconv.FormatInt(n, 10))
+	if err != nil {
+		PrintError("Int64Int", err)
+		return 0
+	}
+	return n10
+}
+
+func Int64Str(n int64) string {
+	return fmt.Sprintf("%v", n)
+}
+
+func IsSymlink(src string) bool {
 	linfo, err := os.Lstat(src)
 	if err != nil {
 		PrintError("getSymlink", err)
@@ -239,7 +191,7 @@ func isSymlink(src string) bool {
 	return false
 }
 
-func getSymlink(src string) string {
+func GetSymlink(src string) string {
 	linfo, err := os.Lstat(src)
 	if err != nil {
 		PrintError("getSymlink", err)
@@ -256,24 +208,14 @@ func getSymlink(src string) string {
 	return ""
 }
 
-func dumpFileList(flist []string, fname string) error {
-	fpath := filepath.Join(LogDir, GetNowTimeStr("Ymd"), strings.Join([]string{GetNowTimeStr("H"), "_", fname, ".txt"}, ""))
-
-	MakeDirs(filepath.Dir(fpath))
-	dstWriter, err := os.OpenFile(fpath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		PrintError("dumpFileList: OpenFile", err)
-		return err
+func IsPathValid(p string) bool {
+	if strings.ContainsAny(p, PathBanSymbols) {
+		return false
 	}
-
-	dstWriter.WriteString(strings.Join(flist, "\n"))
-
-	dstWriter.Close()
-
-	return nil
+	return true
 }
 
-func isCopyNeeded(fpath string, dirInfo fs.DirEntry) bool {
+func IsFileNeeded(fpath string, finfo fs.FileInfo) bool {
 	if FileExt != "" {
 		if fextMatch.MatchString(filepath.Ext(fpath)) == false {
 			return false
@@ -286,15 +228,8 @@ func isCopyNeeded(fpath string, dirInfo fs.DirEntry) bool {
 		}
 	}
 
-	if dirInfo == nil {
+	if finfo == nil {
 		return true
-	}
-
-	var finfo fs.FileInfo
-	var err error
-	if MinSize != -1 || MaxSize != -1 || MinAge != "" || MaxAge != "" {
-		finfo, err = dirInfo.Info()
-		PrintError("isCopyNeeded", err)
 	}
 
 	if MinSize != -1 {
@@ -322,4 +257,30 @@ func isCopyNeeded(fpath string, dirInfo fs.DirEntry) bool {
 	}
 
 	return true
+}
+
+func GetFileSize(fpath string) int64 {
+	finfo, err := os.Stat(fpath)
+	if err != nil {
+		PrintError("GetFileInfo", err)
+		return 0
+	}
+	return finfo.Size()
+}
+
+func DumpFileList(flist []string, fname string) string {
+	fpath := ToUnixSlash(filepath.Join(LogDir, fname))
+
+	MakeDirs(filepath.Dir(fpath))
+	dstWriter, err := os.OpenFile(fpath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.ModePerm)
+	if err != nil {
+		PrintError("dumpFileList: OpenFile", err)
+		return ""
+	}
+
+	dstWriter.WriteString(strings.Join(flist, "\n"))
+
+	dstWriter.Close()
+
+	return fpath
 }

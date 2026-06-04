@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"fmt"
+	"sync"
 	"sync/atomic"
 
 	"github.com/spf13/cobra"
@@ -13,43 +14,44 @@ import (
 // diffCmd represents the diff command
 var diffCmd = &cobra.Command{
 	Use:   "diff",
-	Short: "--source-dir=  --target-dir=",
+	Short: "",
 	Long:  ``,
 	PreRun: func(cmd *cobra.Command, args []string) {
-		//DebugInfo("sendCmd", "PreRun")
-		MakeDirs(LogDir)
-	},
-	Run: func(cmd *cobra.Command, args []string) {
-		var err error
-		if IsWithTLS {
-			err = SetTLSClientStreamConn()
-		} else {
-			err = SetClientStreamConn()
+		PrintlnInfo("white", "source-dir", SourceDir)
+		PrintlnInfo("white", "log-dir", LogDir)
+		fmt.Println(sepLine)
+		if !Exists(SourceDir) {
+			FatalError("diff", NewError("dir does not exist: ", SourceDir))
 		}
-		FatalError("send: cannot connect to server", err)
 
 		serverHealthCheck()
-
-		timeStart = GetNowUnix()
-
-		ClientDiffAllFiles()
 	},
-	PostRun: func(cmd *cobra.Command, args []string) {
-		timeStop = GetNowUnix()
-		tnum := atomic.LoadInt32(&totalNum)
-		tduration := timeStop - timeStart
-		if tduration > 0 {
-			tws := atomic.LoadInt64(&totalWriteSize)
-			tspeed := int64((float64(tws) / float64(tduration)))
-			fmt.Println(sepLine)
-			fmt.Printf("\nCount: %d, Size: %d MB, Speed: %d MB/s\n", tnum, tws>>20, tspeed>>20)
-			fmt.Println(sepLine)
-		}
+	Run: func(cmd *cobra.Command, args []string) {
+		wg := sync.WaitGroup{}
+		wg.Add(3)
+		go func() {
+			defer wg.Done()
+			ClientWalkSourceDir()
+		}()
+
+		go func() {
+			defer wg.Done()
+			taskDiffFiles()
+			atomic.StoreInt32(&progressFlag, 2)
+		}()
+
+		go func() {
+			defer wg.Done()
+			ShowProgress()
+		}()
+
+		wg.Wait()
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(diffCmd)
+	//
 	rootCmd.MarkFlagRequired("host")
 	rootCmd.MarkFlagRequired("port")
 	rootCmd.MarkFlagRequired("log-dir")

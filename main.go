@@ -1,9 +1,10 @@
 /*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
+Copyright © 2026 NAME HERE <EMAIL ADDRESS>
+
 */
 package main
 
-import "rpcopy/cmd"
+import "zcp/cmd"
 
 func main() {
 	cmd.Execute()
