@@ -118,7 +118,7 @@ func pbFileChunkSave(pbIn *pb.File) (statusCode int, err error) {
 	if pbIn.OffsetTo == pbIn.Fsize {
 		dstWriter.Close()
 
-		PrintlnInfo("green", "["+Int32Str(pbIn.Status)+"]", string(pbIn.Path))
+		DebugInfo("["+Int32Str(pbIn.Status)+"]", string(pbIn.Path))
 
 		dstSum := hashFile(dstPathTemp)
 		if string(pbIn.GetFsum()) != dstSum {

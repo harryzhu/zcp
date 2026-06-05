@@ -27,7 +27,6 @@ var rootCmd = &cobra.Command{
 	Short: "",
 	Long:  ``,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		//DebugInfo("rootCmd", "PersistentPreRun")
 		if LogDir != "" {
 			LogDir = filepath.Join(LogDir, GetNowTimeStr("Ymd"))
 		}
@@ -41,7 +40,6 @@ var rootCmd = &cobra.Command{
 		timeStart = GetNowUnix()
 	},
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
-		//DebugInfo("rootCmd", "PersistentPostRun")
 		timeStop = GetNowUnix()
 		timeDuration = timeStop - timeStart
 		fmt.Println(sepLine)

@@ -18,8 +18,8 @@ const (
 )
 
 var (
-	chanSmallFile chan string = make(chan string, 8192)
-	chanLargeFile chan string = make(chan string, 8192)
+	chanSmallFile chan string = make(chan string, 32768)
+	chanLargeFile chan string = make(chan string, 32768)
 )
 
 var (
