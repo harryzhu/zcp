@@ -31,7 +31,7 @@ var pushCmd = &cobra.Command{
 			MinSize = MinSizeMB << 20
 		}
 		if MaxSizeMB != -1 {
-			MaxSize = MinSizeMB << 20
+			MaxSize = MaxSizeMB << 20
 		}
 		if MinAge != "" {
 			MinAgeUnix = TimeStr2Unix(MinAge)
