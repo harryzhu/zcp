@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"hash"
@@ -14,13 +15,40 @@ import (
 	"time"
 
 	"github.com/klauspost/compress/zstd"
+	"github.com/vmihailenco/msgpack/v5"
 	"github.com/zeebo/xxh3"
 )
 
-const (
-	// for func IsPathValid
-	PathBanSymbols string = `:\\*\">?<|`
-)
+type FinfoLite struct {
+	Size  int64
+	Mtime time.Time
+	Mode  fs.FileMode
+}
+
+func NewFinfoLite(sz int64, mt time.Time, md fs.FileMode) FinfoLite {
+	return FinfoLite{
+		Size:  sz,
+		Mtime: mt,
+		Mode:  md,
+	}
+}
+
+func fileInfo2Bytes(finfo fs.FileInfo) []byte {
+	finfolite := FinfoLite{
+		Size:  finfo.Size(),
+		Mtime: finfo.ModTime(),
+		Mode:  finfo.Mode(),
+	}
+	b, err := msgpack.Marshal(finfolite)
+	FatalError("fileInfo2Bytes", err)
+	return b
+}
+
+func bytes2FileInfo(b []byte) (flite FinfoLite) {
+	err := msgpack.Unmarshal(b, &flite)
+	FatalError("bytes2FileInfo", err)
+	return flite
+}
 
 func ToUnixSlash(s string) string {
 	// for windows
@@ -33,6 +61,14 @@ func Exists(fpath string) bool {
 		return false
 	}
 	return true
+}
+
+func GetFileSize(fpath string) int64 {
+	finfo, err := os.Stat(fpath)
+	if err != nil {
+		return -1
+	}
+	return finfo.Size()
 }
 
 func ZstdBytes(rawin []byte) []byte {
@@ -86,6 +122,19 @@ func hashString(b []byte) string {
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
+func GetNowTimeStr(f string) string {
+	switch f {
+	case "Ymd":
+		return time.Now().Format("20060102")
+	case "H":
+		return time.Now().Format("15")
+	case "His":
+		return time.Now().Format("150405")
+	default:
+		return time.Now().Format("20060102150405")
+	}
+}
+
 func MakeDirs(dpath string) error {
 	dpath = ToUnixSlash(dpath)
 	_, err := os.Stat(dpath)
@@ -96,6 +145,48 @@ func MakeDirs(dpath string) error {
 		return err
 	}
 	return nil
+}
+
+func GetNowTime() time.Time {
+	return time.Now()
+}
+
+func Int2Str(n int) string {
+	return strconv.Itoa(n)
+}
+
+func Int32Str(n int32) string {
+	return fmt.Sprintf("%v", n)
+}
+
+func Int64Str(n int64) string {
+	return fmt.Sprintf("%v", n)
+}
+
+func WriteFile(fp io.Writer, data []byte) error {
+	r := bytes.NewReader(data)
+	w := bufio.NewWriter(fp)
+	_, err := w.ReadFrom(r)
+	if err != nil {
+		PrintError("BufferWriteFile", err)
+		return err
+	}
+	w.Flush()
+	return nil
+}
+
+func TimeStr2Unix(s string) int64 {
+	layout := "2006-01-02 15:04:05"
+	var parsedTime time.Time
+	var err error
+
+	parsedTime, err = time.ParseInLocation(layout, s, time.Local)
+
+	if err != nil {
+		FatalError("TimeStr2Unix", err)
+	}
+
+	return parsedTime.Unix()
 }
 
 func MakeSymlink(srcFile string, dstLink string) error {
@@ -114,75 +205,10 @@ func MakeSymlink(srcFile string, dstLink string) error {
 	return nil
 }
 
-func GetNowTime() time.Time {
-	return time.Now()
-}
-
-func GetNowUnix() int64 {
-	return time.Now().UTC().Unix()
-}
-
-func GetNowUnixMilli() int64 {
-	return time.Now().UTC().UnixMilli()
-}
-
-func GetNowTimeStr(f string) string {
-	switch f {
-	case "Ymd":
-		return time.Now().Format("20060102")
-	case "H":
-		return time.Now().Format("15")
-	case "His":
-		return time.Now().Format("150405")
-	default:
-		return time.Now().Format("20060102150405")
-	}
-}
-
-func TimeStr2Unix(s string) int64 {
-	layout := "2006-01-02 15:04:05"
-	if strings.Contains(s, ",") {
-		layout = "2006-01-02,15:04:05"
-	}
-
-	var parsedTime time.Time
-	var err error
-
-	parsedTime, err = time.ParseInLocation(layout, s, time.Local)
-
-	if err != nil {
-		PrintError("TimeStr2Unix", err)
-		os.Exit(0)
-	}
-
-	return parsedTime.Unix()
-}
-
-func Int2Str(n int) string {
-	return strconv.Itoa(n)
-}
-
-func Int32Str(n int32) string {
-	return fmt.Sprintf("%v", n)
-}
-
-func Int64Int(n int64) int {
-	n10, err := strconv.Atoi(strconv.FormatInt(n, 10))
-	if err != nil {
-		PrintError("Int64Int", err)
-		return 0
-	}
-	return n10
-}
-
-func Int64Str(n int64) string {
-	return fmt.Sprintf("%v", n)
-}
-
 func IsSymlink(src string) bool {
 	linfo, err := os.Lstat(src)
 	if err != nil {
-		PrintError("getSymlink", err)
+		PrintError("IsSymlink", err)
 		return false
 	}
 	if linfo.Mode()&os.ModeSymlink != 0 {
@@ -194,13 +220,13 @@ func IsSymlink(src string) bool {
 func GetSymlink(src string) string {
 	linfo, err := os.Lstat(src)
 	if err != nil {
-		PrintError("getSymlink", err)
+		PrintError("GetSymlink", err)
 		return ""
 	}
 	if linfo.Mode()&os.ModeSymlink != 0 {
 		srcLinkTarget, err := os.Readlink(src)
 		if err != nil {
-			PrintError("getSymlink", err)
+			PrintError("GetSymlink", err)
 			return ""
 		}
 		return srcLinkTarget
@@ -208,50 +234,41 @@ func GetSymlink(src string) string {
 	return ""
 }
 
-func IsPathValid(p string) bool {
-	if strings.ContainsAny(p, PathBanSymbols) {
-		return false
-	}
-	return true
-}
-
 func IsFileNeeded(fpath string, finfo fs.FileInfo) bool {
-	if FileExt != "" {
-		if fextMatch.MatchString(filepath.Ext(fpath)) == false {
-			return false
-		}
-	}
-
 	if IsIgnoreDotFile == true {
 		if strings.HasPrefix(filepath.Base(fpath), ".") {
 			return false
 		}
 	}
 
-	if finfo == nil {
-		return true
+	if FileExt != "" {
+		if fextMatch.MatchString(filepath.Ext(fpath)) == false {
+			return false
+		}
 	}
 
+	fsize := finfo.Size()
 	if MinSize != -1 {
-		if finfo.Size() < MinSize {
+		if fsize < MinSize {
 			return false
 		}
 	}
 
 	if MaxSize != -1 {
-		if finfo.Size() > MaxSize {
+		if fsize > MinSize {
 			return false
 		}
 	}
 
-	if MinAge != "" {
-		if finfo.ModTime().Unix() < TimeStr2Unix(MinAge) {
+	fmtime := finfo.ModTime().Unix()
+	if MinAgeUnix != 0 {
+		if fmtime < MinAgeUnix {
 			return false
 		}
 	}
 
-	if MaxAge != "" {
-		if finfo.ModTime().Unix() > TimeStr2Unix(MaxAge) {
+	if MaxAgeUnix != 0 {
+		if fmtime > MaxAgeUnix {
 			return false
 		}
 	}
@@ -259,28 +276,31 @@ func IsFileNeeded(fpath string, finfo fs.FileInfo) bool {
 	return true
 }
 
-func GetFileSize(fpath string) int64 {
-	finfo, err := os.Stat(fpath)
+func Map2Bytes(m map[string]any) ([]byte, error) {
+	b, err := msgpack.Marshal(m)
 	if err != nil {
-		PrintError("GetFileInfo", err)
-		return 0
+		PrintError("Map2Bytes", err)
+		return nil, err
 	}
-	return finfo.Size()
+	return b, nil
 }
 
-func DumpFileList(flist []string, fname string) string {
-	fpath := ToUnixSlash(filepath.Join(LogDir, fname))
-
-	MakeDirs(filepath.Dir(fpath))
-	dstWriter, err := os.OpenFile(fpath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.ModePerm)
+func Bytes2MapString(b []byte) (map[string]string, error) {
+	var m map[string]string
+	err := msgpack.Unmarshal(b, &m)
 	if err != nil {
-		PrintError("dumpFileList: OpenFile", err)
-		return ""
+		PrintError("Bytes2MapString", err)
+		return nil, err
 	}
+	return m, nil
+}
 
-	dstWriter.WriteString(strings.Join(flist, "\n"))
-
-	dstWriter.Close()
-
-	return fpath
+func Bytes2MapFinfoLite(b []byte) (map[string]FinfoLite, error) {
+	var m map[string]FinfoLite
+	err := msgpack.Unmarshal(b, &m)
+	if err != nil {
+		PrintError("Bytes2MapFinfoLite", err)
+		return nil, err
+	}
+	return m, nil
 }

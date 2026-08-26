@@ -2,6 +2,7 @@
 dist/
 _bak
 logs
+data
 build.sh
 local_build.sh
 *.exe

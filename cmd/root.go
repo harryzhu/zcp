@@ -4,21 +4,40 @@ Copyright © 2026 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 )
 
 var (
-	IsDebug   bool
 	Host      string
 	Port      string
-	IsWithTLS bool
+	IsSerial  bool = false
+	IsDebug   bool = false
+	IsWithTLS bool = false
 	LogDir    string
 	//
+	SourceDir string
+	TargetDir string
+	//
+	FileExt    string
+	MinSize    int64
+	MaxSize    int64
+	MinSizeMB  int64
+	MaxSizeMB  int64
+	MinAge     string
+	MaxAge     string
+	MinAgeUnix int64
+	MaxAgeUnix int64
+	//
+	IsFollowSymlink bool = false
+	IsIgnoreDotFile bool = false
+	//
+	ErrorLogFile string = "logs/errors.log"
+	//
+	tStart time.Time
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -27,35 +46,18 @@ var rootCmd = &cobra.Command{
 	Short: "",
 	Long:  ``,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		if LogDir != "" {
-			LogDir = filepath.Join(LogDir, GetNowTimeStr("Ymd"))
-		}
-		SourceDir = strings.TrimRight(ToUnixSlash(SourceDir), "/")
-		TargetDir = strings.TrimRight(ToUnixSlash(TargetDir), "/")
-		LogDir = strings.TrimRight(ToUnixSlash(LogDir), "/")
-
-		if LogDir != "" {
+		SourceDir = strings.TrimSuffix(ToUnixSlash(SourceDir), "/")
+		TargetDir = strings.TrimSuffix(ToUnixSlash(TargetDir), "/")
+		LogDir = strings.TrimSuffix(ToUnixSlash(LogDir), "/")
+		if !Exists(LogDir) {
 			MakeDirs(LogDir)
 		}
-		timeStart = GetNowUnix()
+		tStart = GetNowTime()
 	},
+
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
-		timeStop = GetNowUnix()
-		timeDuration = timeStop - timeStart
-		fmt.Println(sepLine)
-
-		res := ""
-		if timeDuration > 0 {
-			speed := int64(float64(totalWriteSize) / float64(timeDuration))
-			res = fmt.Sprintf("Total: %v, Size: %v MB, Speed: %v MB/s\n",
-				totalNum, totalWriteSize>>20, speed>>20)
-		} else {
-			res = fmt.Sprintf("Total: %v, Size: %v MB\n",
-				totalNum, totalWriteSize>>20)
-		}
-
-		fmt.Println(Cyan(res))
-		PrintlnInfo("white", "zcp: Elapse(sec)", Int64Str(timeDuration))
+		PrintlnInfo("green", "Total Time", time.Since(tStart))
+		StopLogging()
 	},
 }
 
@@ -70,6 +72,7 @@ func Execute() {
 
 func init() {
 	rootCmd.PersistentFlags().BoolVar(&IsDebug, "debug", false, "if print debug info")
+	rootCmd.PersistentFlags().BoolVar(&IsSerial, "serial", false, "copy files one-by-one")
 	//
 	rootCmd.PersistentFlags().StringVar(&Host, "host", "0.0.0.0", "host ip")
 	rootCmd.PersistentFlags().StringVar(&Port, "port", "9527", "port")

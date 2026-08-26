@@ -1,43 +1,19 @@
 package cmd
 
-import (
-	"io/fs"
-	"sync"
-)
-
-const (
-	maxZipSize int64 = 3 << 30
-	//
-	maxSmallFileSize int64 = 32 << 20
-	//
-	chunkSize int = 1 << 20
-	//
-	maxGrpcMessageSize int = 4 << 30
-
-	sepLine string = "----------------------------------------------------------------"
+var (
+	chanLargeFiles chan string = make(chan string, 2048)
+	chanSmallFiles chan string = make(chan string, 4096)
 )
 
 var (
-	chanSmallFile chan string = make(chan string, 32768)
-	chanLargeFile chan string = make(chan string, 32768)
+	chunkSize           int64  = 1 << 20
+	totalSize           int64  = 0
+	totalNum            int32  = 0
+	largeSmallThreshold int64  = 32 << 20
+	AllDone             string = "__ALL_DONE__"
 )
 
 var (
-	//
-	safePbSaveStatus sync.Map
-	pbSaveStatus     map[string][]byte = make(map[string][]byte, 256)
-	progressFlag     int32             = 0
-	//
-	dirList map[string]fs.FileInfo = make(map[string]fs.FileInfo, 256)
-	symList map[string]string      = make(map[string]string, 32)
-)
-
-var (
-	timeStart      int64 = 0
-	timeStop       int64 = 0
-	timeDuration   int64 = 0
-	totalWriteSize int64 = 0
-	totalSpeed     int64 = 0
-	//
-	totalNum int32 = 0
+	symLinkMap    map[string]any = make(map[string]any, 64)
+	folderInfoMap map[string]any = make(map[string]any, 256)
 )

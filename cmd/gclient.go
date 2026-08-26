@@ -1,107 +1,153 @@
 package cmd
 
 import (
+	"context"
+	"fmt"
 	"io/fs"
+	"math"
+	"os"
 	"path/filepath"
+	pb "pb"
 	"strings"
+	"sync/atomic"
+	"time"
 )
 
-func ClientWalkSourceDir() error {
-	smallCount := 0
-	largeCount := 0
-	skipCount := 0
-	sumSize := int64(0)
-	filepath.WalkDir(SourceDir, func(fpath string, dirInfo fs.DirEntry, err error) error {
-		if err != nil {
-			PrintError("ClientWalkSourceDir", err)
-			return err
+func gClientIsSame(fpath string) bool {
+	cpbf := file2pbFile(fpath)
+	resp, _ := GetClient().Head(context.Background(), &cpbf)
+	if resp.Action == 1 {
+		return true
+	}
+	return false
+}
+
+func gClientSyncFolderSymlink() error {
+	client := GetClient()
+	if len(symLinkMap) > 0 {
+		b, err := Map2Bytes(symLinkMap)
+		if err == nil {
+			pbm := pb.Misc{Type: "symlink", Data: b}
+			client.SyncMisc(context.Background(), &pbm)
 		}
+
+	}
+
+	if len(folderInfoMap) > 0 {
+		b, err := Map2Bytes(folderInfoMap)
+		if err == nil {
+			pbm := pb.Misc{Type: "folder", Data: b}
+			client.SyncMisc(context.Background(), &pbm)
+		}
+	}
+	return nil
+}
+
+func selectFiles() error {
+	_, err := os.Stat(SourceDir)
+	if err != nil {
+		PrintError("selectFiles", err)
+		return err
+	}
+
+	var relFpath string
+
+	filepath.Walk(SourceDir, func(fpath string, finfo fs.FileInfo, err error) error {
+		if err != nil {
+			PrintError("selectFiles", err)
+		}
+
 		fpath = ToUnixSlash(fpath)
+		relFpath = strings.TrimPrefix(strings.TrimPrefix(fpath, SourceDir), "/")
+
+		if finfo.IsDir() {
+			folderInfoMap[relFpath] = NewFinfoLite(finfo.Size(), finfo.ModTime(), finfo.Mode())
+			return nil
+		}
 
 		if IsFollowSymlink == false {
 			if IsSymlink(fpath) {
-				linkTo := GetSymlink(fpath)
-				if linkTo != "" {
-					symList[fpath] = strings.Join([]string{"RAW", linkTo}, "::")
-					if strings.HasPrefix(linkTo, SourceDir) {
-						t1 := strings.TrimPrefix(linkTo, SourceDir)
-						symList[fpath] = strings.Join([]string{"SUB", t1}, "::")
-					}
-				}
+				dstSym := ToUnixSlash(GetSymlink(fpath))
+				symLinkMap[relFpath] = dstSym
 				return nil
 			}
 		}
 
-		finfo, err := dirInfo.Info()
-		if err != nil {
-			PrintError("ClientWalkSourceDir: dirInfo.Info", err)
-		}
-		if dirInfo.IsDir() {
-			dirList[fpath] = finfo
-			return nil
-		}
-
 		if IsFileNeeded(fpath, finfo) == false {
-			skipCount++
 			return nil
 		}
 
-		relPath := strings.TrimPrefix(strings.TrimPrefix(fpath, SourceDir), "/")
-		fsize := finfo.Size()
-		if fsize > maxSmallFileSize {
-			chanLargeFile <- relPath
-			largeCount++
-		} else {
-			chanSmallFile <- relPath
-			smallCount++
+		if gClientIsSame(fpath) == true {
+			DebugInfo("[SKIP]", strings.TrimPrefix(strings.TrimPrefix(fpath, SourceDir), "/"))
+			return nil
 		}
 
-		sumSize += fsize
+		if finfo.Size() > largeSmallThreshold {
+			chanLargeFiles <- fpath
+		} else {
+			chanSmallFiles <- fpath
+		}
 
 		return nil
 	})
 
-	chanLargeFile <- "_ALLDONE_"
-	chanSmallFile <- "_ALLDONE_"
-
-	PrintlnInfo("purple", "Processing", "smallFiles: ", smallCount,
-		", largeFiles: ", largeCount,
-		", skipFiles: ", skipCount,
-		", sumSize: ", sumSize>>20, "MB")
+	chanLargeFiles <- AllDone
+	chanSmallFiles <- AllDone
 
 	return nil
 }
 
-func ClientSendLargeFiles() error {
-	taskSendLargeFiles()
-	return nil
+func NewPbFile() pb.File {
+	return pb.File{}
 }
 
-func ClientSendSmallFiles() error {
-	taskSendSmallFiles()
-	return nil
-}
-
-func ClientSendDirSymlink() error {
-	var mapDir, mapSym map[string][]byte
-	mapDir = make(map[string][]byte, len(dirList))
-	mapSym = make(map[string][]byte, len(symList))
-	DebugInfo("ClientSendDirSymlink: Sending", "dir list")
-	for k, v := range dirList {
-		k = ToUnixSlash(strings.TrimPrefix(k, SourceDir))
-		mapDir[k] = finfo2FileInfoLite(v)
+func file2pbFile(fpath string) pb.File {
+	fpath = ToUnixSlash(fpath)
+	pbFile := pb.File{}
+	finfo, err := os.Stat(fpath)
+	if err != nil {
+		PrintError("file2pbFile", err)
+		return pbFile
 	}
-	mdir := NewPbMisc("dir", Map2Byte(mapDir))
-	gClientGetMisc(&mdir)
-
 	//
-	DebugInfo("ClientSendDirSymlink: Sending", "sym list")
-	for slink, sfile := range symList {
-		slink = strings.TrimLeft(ToUnixSlash(strings.TrimPrefix(slink, SourceDir)), "/")
-		mapSym[slink] = []byte(sfile)
+	pbFile.Action = 0
+	pbFile.Comment = ""
+	pbFile.Fpath = strings.TrimPrefix(strings.TrimPrefix(fpath, SourceDir), "/")
+	pbFile.Fhash = hashFile(fpath)
+	pbFile.Fsize = finfo.Size()
+	pbFile.Finfo = fileInfo2Bytes(finfo)
+
+	chunkTotal := int32(math.Ceil(float64(finfo.Size()) / float64(chunkSize)))
+
+	pbFile.ChunkNum = 0
+	pbFile.ChunkTotal = chunkTotal
+	pbFile.ChunkOffset = 0
+	pbFile.ChunkHash = ""
+	pbFile.ChunkSize = 0
+	pbFile.ChunkData = nil
+	//
+
+	return pbFile
+}
+
+func logSendFailure() error {
+	if len(sendFailure) > 0 {
+		fp, err := os.OpenFile(ToUnixSlash(filepath.Join(LogDir, "send_errors.log")),
+			os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.ModePerm)
+		FatalError("logSendFailure", err)
+		for k, v := range sendFailure {
+			WriteFile(fp, fmt.Appendf([]byte(""), "%s, %s\n", k, v))
+		}
+		fp.Close()
+
 	}
-	msym := NewPbMisc("sym", Map2Byte(mapSym))
-	gClientGetMisc(&msym)
 
 	return nil
+}
+
+func gClientGetSpeed() int64 {
+	sz := atomic.LoadInt64(&totalSize)
+	ts := time.Since(tStart).Seconds()
+	speed := int64(float64(sz) / ts)
+	return speed
 }

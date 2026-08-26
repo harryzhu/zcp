@@ -14,7 +14,19 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-var gClientConn *grpc.ClientConn
+var (
+	//
+	//gClientConn        *grpc.ClientConn
+	maxGrpcMessageSize int = 4 << 30
+	//
+	tlsServerCert string = "cert/server/server.crt"
+	tlsServerKey  string = "cert/server/server.key"
+	//
+	tlsClientCert string = "cert/client/client.crt"
+	tlsClientKey  string = "cert/client/client.key"
+	//
+	tlsCA string = "cert/ca.crt"
+)
 
 func GetClientStream() pb.FileTransfer_StreamReceiveClient {
 	client := GetClient()
@@ -36,6 +48,7 @@ func GetClient() pb.FileTransferClient {
 }
 
 func _getClient() pb.FileTransferClient {
+	gClientConn := _buildGrpcClientConn()
 	client := pb.NewFileTransferClient(gClientConn)
 	if client == nil {
 		FatalError("GetClient", NewError("gClient cannot be empty"))
@@ -45,9 +58,10 @@ func _getClient() pb.FileTransferClient {
 }
 
 func _getTLSClient() pb.FileTransferClient {
+	gClientConn := _buildGrpcTLSClientConn()
 	client := pb.NewFileTransferClient(gClientConn)
 	if client == nil {
-		FatalError("GetTLSClient", NewError("client cannot be empty"))
+		FatalError("GetTLSClient", NewError("gTLSClient cannot be empty"))
 	}
 
 	return client
@@ -71,11 +85,11 @@ func _buildGrpcClientConn() *grpc.ClientConn {
 func _buildGrpcTLSClientConn() *grpc.ClientConn {
 	hostPort := strings.Join([]string{Host, Port}, ":")
 
-	certificate, err := tls.LoadX509KeyPair("cert/client/client.crt", "cert/client/client.key")
+	certificate, err := tls.LoadX509KeyPair(tlsClientCert, tlsClientKey)
 	FatalError("gClientConn: init:tls.LoadX509KeyPair", err)
 
 	certPool := x509.NewCertPool()
-	ca, err := os.ReadFile("cert/ca.crt")
+	ca, err := os.ReadFile(tlsCA)
 	FatalError("gClientConn: init:os.ReadFile", err)
 
 	if ok := certPool.AppendCertsFromPEM(ca); !ok {
@@ -118,13 +132,13 @@ func StartFileTransferServer() {
 }
 
 func StartTLSFileTransferServer() {
-	certificate, err := tls.LoadX509KeyPair("cert/server/server.crt", "cert/server/server.key")
+	certificate, err := tls.LoadX509KeyPair(tlsServerCert, tlsServerKey)
 	if err != nil {
 		FatalError("StartTLSFileTransferServer:tls.LoadX509KeyPair", err)
 	}
 
 	certPool := x509.NewCertPool()
-	ca, err := os.ReadFile("cert/ca.crt")
+	ca, err := os.ReadFile(tlsCA)
 	if err != nil {
 		FatalError("StartTLSFileTransferServer:os.ReadFile", err)
 	}

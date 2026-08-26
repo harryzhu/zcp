@@ -4,14 +4,7 @@ Copyright © 2026 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
-)
-
-var (
-	TargetDir   string
-	IsOverwrite bool
 )
 
 // serverCmd represents the server command
@@ -20,33 +13,32 @@ var serverCmd = &cobra.Command{
 	Short: "",
 	Long:  ``,
 	PreRun: func(cmd *cobra.Command, args []string) {
-		if !Exists(TargetDir) {
-			MakeDirs(TargetDir)
+		StartLogging("server.log")
+
+		if TargetDir == "" || !Exists(TargetDir) {
+			FatalError("arg error", NewError("--target-dir=  does not exist."))
 		}
-		PrintlnInfo("white", "target-dir", TargetDir)
-		PrintlnInfo("white", "log-dir", LogDir)
-		PrintlnInfo("white", "allow-overwrite", IsOverwrite)
-		fmt.Println(sepLine)
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		if IsWithTLS {
-			PrintlnInfo("white", "try to enable TLS mode")
 			StartTLSFileTransferServer()
 		} else {
 			StartFileTransferServer()
 		}
+
+	},
+	PostRun: func(cmd *cobra.Command, args []string) {
+
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(serverCmd)
-	//
+
 	rootCmd.MarkFlagRequired("host")
 	rootCmd.MarkFlagRequired("port")
 	rootCmd.MarkFlagRequired("log-dir")
 
-	serverCmd.Flags().StringVar(&TargetDir, "target-dir", "", "root dir for saving")
-	serverCmd.Flags().BoolVar(&IsOverwrite, "overwrite", true, "allow to overwrite the existing files")
+	serverCmd.PersistentFlags().StringVar(&TargetDir, "target-dir", "", "target dir for file saving")
 
-	serverCmd.MarkFlagRequired("target-dir")
 }

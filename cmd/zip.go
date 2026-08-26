@@ -6,14 +6,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/klauspost/compress/zstd"
 )
 
-func createZip(filelist []string, zname string) (err error) {
-	zpath := ToUnixSlash(filepath.Join(LogDir, hashString([]byte(zname))))
+func createZip(filelist []string) (err error) {
+	zpath := "_tmp.zst"
 	if Exists(zpath) {
 		err := os.Remove(zpath)
 		PrintError("createZip:os.Remove", err)
@@ -42,9 +41,9 @@ func createZip(filelist []string, zname string) (err error) {
 	var fkey, fpath string
 	var finfo os.FileInfo
 
-	for _, relPath := range filelist {
-		fkey = ToUnixSlash(strings.TrimPrefix(relPath, SourceDir))
-		fpath = ToUnixSlash(filepath.Join(SourceDir, relPath))
+	for _, fpath = range filelist {
+		fkey = strings.TrimPrefix(ToUnixSlash(strings.TrimPrefix(fpath, SourceDir)), "/")
+		fpath = ToUnixSlash(fpath)
 
 		finfo, err = os.Stat(fpath)
 		if err != nil {
@@ -66,16 +65,13 @@ func createZip(filelist []string, zname string) (err error) {
 
 		if !finfo.IsDir() {
 			fp, err := os.Open(fpath)
-			defer fp.Close()
-
 			if err != nil {
 				PrintError("createZip:os.Open:"+fpath, err)
 				continue
 			}
-			_, err = io.Copy(w, fp)
+			defer fp.Close()
 
-			atomic.AddInt32(&totalNum, 1)
-			atomic.AddInt64(&totalWriteSize, finfo.Size())
+			_, err = io.Copy(w, fp)
 
 			if err != nil {
 				PrintError("createZip:io.Copy:"+fpath, err)
@@ -87,6 +83,7 @@ func createZip(filelist []string, zname string) (err error) {
 	}
 
 	zw.Close()
+	zipFileHandler.Close()
 
 	finfo, err = os.Stat(zpath)
 	if err != nil {
@@ -99,19 +96,96 @@ func createZip(filelist []string, zname string) (err error) {
 		", Files: ", len(filelist),
 		", Zip: ", finfo.Size()>>20, "MB")
 
-	pbFile := file2pbFile(zpath, "zip")
-
+	PrintlnInfo("green", "createZip", "sending zip ...")
 	t1 = GetNowTime()
-	err = gClientStreamSend(zpath, pbFile)
+	err = chunkSend(zpath, 200)
 	if err != nil {
-		PrintError("createZip:gClientStreamSend", err)
+		PrintError("createZip:chunkSend", err)
 		return err
 	}
-	PrintlnInfo("green", "createZip:send: Elapse", time.Since(t1))
+	PrintlnInfo("green", "createZip: Send", time.Since(t1))
 
 	if Exists(zpath) {
 		err := os.Remove(zpath)
 		PrintError("createZip:os.Remove", err)
+		return err
+	}
+
+	return nil
+}
+
+func extractZip(zipPath string) error {
+	fh, err := os.Open(zipPath)
+	if err != nil {
+		PrintError("extractZip:Open", err)
+		return err
+	}
+
+	finfo, err := fh.Stat()
+	if err != nil {
+		PrintError("extractZip:Stat", err)
+		return err
+	} else {
+		PrintlnInfo("cyan", "extractZip:Size", finfo.Size())
+	}
+
+	unzipReader, err := zip.NewReader(fh, finfo.Size())
+	if err != nil {
+		PrintError("extractZip:NewReader", err)
+		return err
+	}
+
+	decomp := zstd.ZipDecompressor(
+		zstd.WithDecoderConcurrency(4),
+	)
+
+	unzipReader.RegisterDecompressor(zstd.ZipMethodWinZip, decomp)
+	unzipReader.RegisterDecompressor(zstd.ZipMethodPKWare, decomp)
+
+	var dstPath string
+	for _, fzip := range unzipReader.File {
+		header := fzip.FileHeader
+		finfo := header.FileInfo()
+
+		dstPath = ToUnixSlash(filepath.Join(TargetDir, fzip.Name))
+		if finfo.IsDir() {
+			MakeDirs(dstPath)
+		} else {
+			MakeDirs(filepath.Dir(dstPath))
+			dst, err := os.Create(dstPath)
+			if err != nil {
+				PrintError("extractZip:os.Create", err)
+				continue
+			}
+			funzip, err := fzip.Open()
+			if err != nil {
+				PrintError("extractZip:fzip.Open", err)
+				continue
+			}
+
+			if _, err := io.Copy(dst, funzip); err != nil {
+				PrintError("extractZip:io.Copy", err)
+			}
+
+			if err := funzip.Close(); err != nil {
+				PrintError("extractZip:funzip.Close", err)
+			}
+			dst.Close()
+		}
+
+		err = os.Chtimes(dstPath, finfo.ModTime(), finfo.ModTime())
+		PrintError("extractZip:os.Chtimes", err)
+
+		err = os.Chmod(dstPath, finfo.Mode())
+		PrintError("extractZip:os.Chmod", err)
+	}
+
+	fh.Close()
+
+	//
+	if Exists(zipPath) {
+		err := os.Remove(zipPath)
+		PrintError("extractZip:os.Remove", err)
 		return err
 	}
 

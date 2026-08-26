@@ -19,4 +19,7 @@ zip dist/macos_intel/zcp_macos_intel.zip dist/macos_intel/zcp
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o dist/linux_amd64/zcp -ldflags "-w -s" main.go
 zip dist/linux_amd64/zcp_linux_amd64.zip dist/linux_amd64/zcp
 
+CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o dist/linux_arm64/zcp -ldflags "-w -s" main.go
+zip dist/linux_arm64/zcp_linux_arm64.zip dist/linux_arm64/zcp
+
 

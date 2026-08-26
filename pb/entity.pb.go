@@ -27,16 +27,18 @@ var _ = math.Inf
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 type File struct {
-	Status               int32    `protobuf:"varint,1,opt,name=status,proto3" json:"status,omitempty"`
-	Comment              []byte   `protobuf:"bytes,2,opt,name=comment,proto3" json:"comment,omitempty"`
-	Path                 []byte   `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
-	Ftype                []byte   `protobuf:"bytes,4,opt,name=ftype,proto3" json:"ftype,omitempty"`
-	Finfo                []byte   `protobuf:"bytes,5,opt,name=finfo,proto3" json:"finfo,omitempty"`
-	Fsum                 []byte   `protobuf:"bytes,6,opt,name=fsum,proto3" json:"fsum,omitempty"`
-	Fsize                int64    `protobuf:"varint,7,opt,name=fsize,proto3" json:"fsize,omitempty"`
-	OffsetFrom           int64    `protobuf:"varint,8,opt,name=offsetFrom,proto3" json:"offsetFrom,omitempty"`
-	OffsetTo             int64    `protobuf:"varint,9,opt,name=offsetTo,proto3" json:"offsetTo,omitempty"`
-	Data                 []byte   `protobuf:"bytes,10,opt,name=data,proto3" json:"data,omitempty"`
+	Action               int32    `protobuf:"varint,1,opt,name=action,proto3" json:"action,omitempty"`
+	Comment              string   `protobuf:"bytes,2,opt,name=comment,proto3" json:"comment,omitempty"`
+	Fpath                string   `protobuf:"bytes,3,opt,name=fpath,proto3" json:"fpath,omitempty"`
+	Fhash                string   `protobuf:"bytes,4,opt,name=fhash,proto3" json:"fhash,omitempty"`
+	Fsize                int64    `protobuf:"varint,5,opt,name=fsize,proto3" json:"fsize,omitempty"`
+	ChunkHash            string   `protobuf:"bytes,6,opt,name=chunkHash,proto3" json:"chunkHash,omitempty"`
+	ChunkNum             int32    `protobuf:"varint,7,opt,name=chunkNum,proto3" json:"chunkNum,omitempty"`
+	ChunkTotal           int32    `protobuf:"varint,8,opt,name=chunkTotal,proto3" json:"chunkTotal,omitempty"`
+	ChunkOffset          int64    `protobuf:"varint,9,opt,name=chunkOffset,proto3" json:"chunkOffset,omitempty"`
+	ChunkSize            int64    `protobuf:"varint,10,opt,name=chunkSize,proto3" json:"chunkSize,omitempty"`
+	Finfo                []byte   `protobuf:"bytes,11,opt,name=finfo,proto3" json:"finfo,omitempty"`
+	ChunkData            []byte   `protobuf:"bytes,12,opt,name=chunkData,proto3" json:"chunkData,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -75,46 +77,32 @@ func (m *File) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_File proto.InternalMessageInfo
 
-func (m *File) GetStatus() int32 {
+func (m *File) GetAction() int32 {
 	if m != nil {
-		return m.Status
+		return m.Action
 	}
 	return 0
 }
 
-func (m *File) GetComment() []byte {
+func (m *File) GetComment() string {
 	if m != nil {
 		return m.Comment
 	}
-	return nil
+	return ""
 }
 
-func (m *File) GetPath() []byte {
+func (m *File) GetFpath() string {
 	if m != nil {
-		return m.Path
+		return m.Fpath
 	}
-	return nil
+	return ""
 }
 
-func (m *File) GetFtype() []byte {
+func (m *File) GetFhash() string {
 	if m != nil {
-		return m.Ftype
+		return m.Fhash
 	}
-	return nil
-}
-
-func (m *File) GetFinfo() []byte {
-	if m != nil {
-		return m.Finfo
-	}
-	return nil
-}
-
-func (m *File) GetFsum() []byte {
-	if m != nil {
-		return m.Fsum
-	}
-	return nil
+	return ""
 }
 
 func (m *File) GetFsize() int64 {
@@ -124,29 +112,57 @@ func (m *File) GetFsize() int64 {
 	return 0
 }
 
-func (m *File) GetOffsetFrom() int64 {
+func (m *File) GetChunkHash() string {
 	if m != nil {
-		return m.OffsetFrom
+		return m.ChunkHash
+	}
+	return ""
+}
+
+func (m *File) GetChunkNum() int32 {
+	if m != nil {
+		return m.ChunkNum
 	}
 	return 0
 }
 
-func (m *File) GetOffsetTo() int64 {
+func (m *File) GetChunkTotal() int32 {
 	if m != nil {
-		return m.OffsetTo
+		return m.ChunkTotal
 	}
 	return 0
 }
 
-func (m *File) GetData() []byte {
+func (m *File) GetChunkOffset() int64 {
 	if m != nil {
-		return m.Data
+		return m.ChunkOffset
+	}
+	return 0
+}
+
+func (m *File) GetChunkSize() int64 {
+	if m != nil {
+		return m.ChunkSize
+	}
+	return 0
+}
+
+func (m *File) GetFinfo() []byte {
+	if m != nil {
+		return m.Finfo
+	}
+	return nil
+}
+
+func (m *File) GetChunkData() []byte {
+	if m != nil {
+		return m.ChunkData
 	}
 	return nil
 }
 
 type Misc struct {
-	Mtype                string   `protobuf:"bytes,1,opt,name=mtype,proto3" json:"mtype,omitempty"`
+	Type                 string   `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
 	Data                 []byte   `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -186,9 +202,9 @@ func (m *Misc) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_Misc proto.InternalMessageInfo
 
-func (m *Misc) GetMtype() string {
+func (m *Misc) GetType() string {
 	if m != nil {
-		return m.Mtype
+		return m.Type
 	}
 	return ""
 }
@@ -208,28 +224,29 @@ func init() {
 func init() { proto.RegisterFile("entity.proto", fileDescriptor_cf50d946d740d100) }
 
 var fileDescriptor_cf50d946d740d100 = []byte{
-	// 321 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x7c, 0x91, 0x3f, 0x4e, 0xf3, 0x40,
-	0x10, 0xc5, 0xb3, 0x89, 0xf3, 0x6f, 0x94, 0xaf, 0x19, 0x7d, 0x8a, 0x56, 0x11, 0x32, 0x51, 0x1a,
-	0x5c, 0x59, 0x08, 0x4a, 0x3a, 0x8a, 0x40, 0x83, 0x84, 0x4c, 0x2a, 0xba, 0x75, 0x32, 0x16, 0x96,
-	0xb0, 0xd7, 0xf2, 0x4e, 0x90, 0xc2, 0x45, 0xe0, 0x48, 0x94, 0x1c, 0x01, 0x99, 0x1b, 0x70, 0x02,
-	0xb4, 0xbb, 0xc1, 0x50, 0x20, 0xba, 0xf7, 0x7b, 0xf3, 0x9e, 0x66, 0xec, 0x85, 0x09, 0x95, 0x9c,
-	0xf3, 0x2e, 0xae, 0x6a, 0xcd, 0x1a, 0xbb, 0x55, 0xba, 0xf8, 0x10, 0x10, 0x2c, 0xf3, 0x7b, 0xc2,
-	0x29, 0x0c, 0x0c, 0x2b, 0xde, 0x1a, 0x29, 0xe6, 0x22, 0xea, 0x27, 0x7b, 0x42, 0x09, 0xc3, 0xb5,
-	0x2e, 0x0a, 0x2a, 0x59, 0x76, 0xe7, 0x22, 0x9a, 0x24, 0x5f, 0x88, 0x08, 0x41, 0xa5, 0xf8, 0x4e,
-	0xf6, 0x9c, 0xed, 0x34, 0xfe, 0x87, 0x7e, 0xc6, 0xbb, 0x8a, 0x64, 0xe0, 0x4c, 0x0f, 0xce, 0xcd,
-	0xcb, 0x4c, 0xcb, 0xfe, 0xde, 0xb5, 0x60, 0xfb, 0x99, 0xd9, 0x16, 0x72, 0xe0, 0xfb, 0x56, 0xbb,
-	0xa4, 0xc9, 0x1f, 0x49, 0x0e, 0xe7, 0x22, 0xea, 0x25, 0x1e, 0x30, 0x04, 0xd0, 0x59, 0x66, 0x88,
-	0x97, 0xb5, 0x2e, 0xe4, 0xc8, 0x8d, 0x7e, 0x38, 0x38, 0x83, 0x91, 0xa7, 0x95, 0x96, 0x63, 0x37,
-	0x6d, 0xd9, 0x6e, 0xd9, 0x28, 0x56, 0x12, 0xfc, 0x16, 0xab, 0x17, 0xc7, 0x10, 0x5c, 0xe5, 0x66,
-	0x6d, 0xb7, 0x15, 0xee, 0x5a, 0xfb, 0xc9, 0xe3, 0xc4, 0x43, 0xdb, 0xe8, 0x7e, 0x37, 0x4e, 0x9e,
-	0x04, 0x4c, 0xec, 0x6f, 0x5a, 0xd5, 0xaa, 0x34, 0x19, 0xd5, 0x78, 0x04, 0xff, 0x6e, 0xb8, 0x26,
-	0x55, 0x24, 0xb4, 0xa6, 0xfc, 0x81, 0x70, 0x14, 0x57, 0x69, 0x6c, 0x23, 0xb3, 0x56, 0x2d, 0x3a,
-	0x91, 0xc0, 0x03, 0x08, 0x2e, 0x49, 0x6d, 0x7e, 0x9f, 0xe3, 0x21, 0x0c, 0x2f, 0x88, 0xdd, 0x31,
-	0xce, 0xb6, 0x6a, 0xd6, 0x2a, 0x1f, 0xb8, 0xde, 0xfe, 0x11, 0x38, 0x9f, 0xbe, 0x34, 0xa1, 0x78,
-	0x6d, 0x42, 0xf1, 0xd6, 0x84, 0xe2, 0xf9, 0x3d, 0xec, 0xdc, 0x06, 0xf1, 0x59, 0x95, 0xa6, 0x03,
-	0xf7, 0xc6, 0xa7, 0x9f, 0x01, 0x00, 0x00, 0xff, 0xff, 0x44, 0x18, 0xca, 0xe9, 0xf3, 0x01, 0x00,
-	0x00,
+	// 344 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x92, 0xcf, 0x4e, 0xc2, 0x40,
+	0x10, 0x87, 0xd9, 0x52, 0xa0, 0x1d, 0xea, 0x65, 0x62, 0xc8, 0x86, 0x90, 0xa6, 0xe9, 0xc5, 0x9e,
+	0x7a, 0xd0, 0xa3, 0x37, 0x63, 0x0c, 0x17, 0x35, 0x29, 0x9c, 0xbc, 0x6d, 0xcb, 0x36, 0x6d, 0xa4,
+	0x7f, 0xd2, 0x2e, 0x1a, 0x7c, 0x12, 0x1f, 0x89, 0xa3, 0x8f, 0x60, 0xf0, 0x45, 0xcc, 0x0e, 0x58,
+	0x38, 0x78, 0xfb, 0x7d, 0xdf, 0xcc, 0x64, 0x27, 0x93, 0x05, 0x47, 0x96, 0x2a, 0x57, 0xdb, 0xb0,
+	0x6e, 0x2a, 0x55, 0xa1, 0x51, 0xc7, 0xfe, 0xce, 0x00, 0xf3, 0x21, 0x5f, 0x4b, 0x9c, 0xc0, 0x50,
+	0x24, 0x2a, 0xaf, 0x4a, 0xce, 0x3c, 0x16, 0x0c, 0xa2, 0x23, 0x21, 0x87, 0x51, 0x52, 0x15, 0x85,
+	0x2c, 0x15, 0x37, 0x3c, 0x16, 0xd8, 0xd1, 0x1f, 0xe2, 0x25, 0x0c, 0xd2, 0x5a, 0xa8, 0x8c, 0xf7,
+	0xc9, 0x1f, 0x80, 0x6c, 0x26, 0xda, 0x8c, 0x9b, 0x47, 0xab, 0x81, 0x6c, 0x9b, 0x7f, 0x48, 0x3e,
+	0xf0, 0x58, 0xd0, 0x8f, 0x0e, 0x80, 0x33, 0xb0, 0x93, 0x6c, 0x53, 0xbe, 0xce, 0x75, 0xff, 0x90,
+	0xfa, 0x4f, 0x02, 0xa7, 0x60, 0x11, 0x3c, 0x6d, 0x0a, 0x3e, 0xa2, 0x9d, 0x3a, 0x46, 0x17, 0x80,
+	0xf2, 0xb2, 0x52, 0x62, 0xcd, 0x2d, 0xaa, 0x9e, 0x19, 0xf4, 0x60, 0x4c, 0xf4, 0x9c, 0xa6, 0xad,
+	0x54, 0xdc, 0xa6, 0x57, 0xcf, 0x55, 0xf7, 0xf6, 0x42, 0x6f, 0x05, 0x54, 0x3f, 0x09, 0xda, 0x37,
+	0x2f, 0xd3, 0x8a, 0x8f, 0x3d, 0x16, 0x38, 0xd1, 0x01, 0xba, 0x99, 0x7b, 0xa1, 0x04, 0x77, 0xa8,
+	0x72, 0x12, 0x7e, 0x08, 0xe6, 0x63, 0xde, 0x26, 0x88, 0x60, 0xaa, 0x6d, 0x2d, 0xe9, 0x8e, 0x76,
+	0x44, 0x59, 0xbb, 0x95, 0x1e, 0x32, 0x68, 0x88, 0xf2, 0xf5, 0x3b, 0x38, 0xfa, 0xf2, 0xcb, 0x46,
+	0x94, 0x6d, 0x2a, 0x1b, 0xbc, 0x82, 0x8b, 0x85, 0x6a, 0xa4, 0x28, 0x22, 0x99, 0xc8, 0xfc, 0x4d,
+	0xa2, 0x15, 0xd6, 0x71, 0xa8, 0x5b, 0xa6, 0x5d, 0xf2, 0x7b, 0x01, 0xc3, 0x19, 0x98, 0x73, 0x29,
+	0x56, 0xff, 0xd7, 0xd1, 0x03, 0x6b, 0xb1, 0x2d, 0x13, 0x5a, 0x85, 0xbc, 0x4e, 0xd3, 0x2e, 0xf9,
+	0xbd, 0xbb, 0xc9, 0x6e, 0xef, 0xb2, 0xaf, 0xbd, 0xcb, 0xbe, 0xf7, 0x2e, 0xfb, 0xfc, 0x71, 0x7b,
+	0x2f, 0x66, 0x78, 0x5b, 0xc7, 0xf1, 0x90, 0xbe, 0xc5, 0xcd, 0x6f, 0x00, 0x00, 0x00, 0xff, 0xff,
+	0x18, 0x96, 0x70, 0x42, 0x26, 0x02, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -246,8 +263,7 @@ const _ = grpc.SupportPackageIsVersion4
 type FileTransferClient interface {
 	StreamReceive(ctx context.Context, opts ...grpc.CallOption) (FileTransfer_StreamReceiveClient, error)
 	Head(ctx context.Context, in *File, opts ...grpc.CallOption) (*File, error)
-	GetMisc(ctx context.Context, in *Misc, opts ...grpc.CallOption) (*Misc, error)
-	PutMisc(ctx context.Context, in *Misc, opts ...grpc.CallOption) (*Misc, error)
+	SyncMisc(ctx context.Context, in *Misc, opts ...grpc.CallOption) (*Misc, error)
 }
 
 type fileTransferClient struct {
@@ -301,18 +317,9 @@ func (c *fileTransferClient) Head(ctx context.Context, in *File, opts ...grpc.Ca
 	return out, nil
 }
 
-func (c *fileTransferClient) GetMisc(ctx context.Context, in *Misc, opts ...grpc.CallOption) (*Misc, error) {
+func (c *fileTransferClient) SyncMisc(ctx context.Context, in *Misc, opts ...grpc.CallOption) (*Misc, error) {
 	out := new(Misc)
-	err := c.cc.Invoke(ctx, "/pb.FileTransfer/GetMisc", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *fileTransferClient) PutMisc(ctx context.Context, in *Misc, opts ...grpc.CallOption) (*Misc, error) {
-	out := new(Misc)
-	err := c.cc.Invoke(ctx, "/pb.FileTransfer/PutMisc", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/pb.FileTransfer/SyncMisc", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -323,8 +330,7 @@ func (c *fileTransferClient) PutMisc(ctx context.Context, in *Misc, opts ...grpc
 type FileTransferServer interface {
 	StreamReceive(FileTransfer_StreamReceiveServer) error
 	Head(context.Context, *File) (*File, error)
-	GetMisc(context.Context, *Misc) (*Misc, error)
-	PutMisc(context.Context, *Misc) (*Misc, error)
+	SyncMisc(context.Context, *Misc) (*Misc, error)
 }
 
 // UnimplementedFileTransferServer can be embedded to have forward compatible implementations.
@@ -337,11 +343,8 @@ func (*UnimplementedFileTransferServer) StreamReceive(srv FileTransfer_StreamRec
 func (*UnimplementedFileTransferServer) Head(ctx context.Context, req *File) (*File, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Head not implemented")
 }
-func (*UnimplementedFileTransferServer) GetMisc(ctx context.Context, req *Misc) (*Misc, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetMisc not implemented")
-}
-func (*UnimplementedFileTransferServer) PutMisc(ctx context.Context, req *Misc) (*Misc, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method PutMisc not implemented")
+func (*UnimplementedFileTransferServer) SyncMisc(ctx context.Context, req *Misc) (*Misc, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SyncMisc not implemented")
 }
 
 func RegisterFileTransferServer(s *grpc.Server, srv FileTransferServer) {
@@ -392,38 +395,20 @@ func _FileTransfer_Head_Handler(srv interface{}, ctx context.Context, dec func(i
 	return interceptor(ctx, in, info, handler)
 }
 
-func _FileTransfer_GetMisc_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _FileTransfer_SyncMisc_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Misc)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(FileTransferServer).GetMisc(ctx, in)
+		return srv.(FileTransferServer).SyncMisc(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/pb.FileTransfer/GetMisc",
+		FullMethod: "/pb.FileTransfer/SyncMisc",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(FileTransferServer).GetMisc(ctx, req.(*Misc))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _FileTransfer_PutMisc_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Misc)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(FileTransferServer).PutMisc(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/pb.FileTransfer/PutMisc",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(FileTransferServer).PutMisc(ctx, req.(*Misc))
+		return srv.(FileTransferServer).SyncMisc(ctx, req.(*Misc))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -437,12 +422,8 @@ var _FileTransfer_serviceDesc = grpc.ServiceDesc{
 			Handler:    _FileTransfer_Head_Handler,
 		},
 		{
-			MethodName: "GetMisc",
-			Handler:    _FileTransfer_GetMisc_Handler,
-		},
-		{
-			MethodName: "PutMisc",
-			Handler:    _FileTransfer_PutMisc_Handler,
+			MethodName: "SyncMisc",
+			Handler:    _FileTransfer_SyncMisc_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
@@ -479,53 +460,63 @@ func (m *File) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if len(m.Data) > 0 {
-		i -= len(m.Data)
-		copy(dAtA[i:], m.Data)
-		i = encodeVarintEntity(dAtA, i, uint64(len(m.Data)))
+	if len(m.ChunkData) > 0 {
+		i -= len(m.ChunkData)
+		copy(dAtA[i:], m.ChunkData)
+		i = encodeVarintEntity(dAtA, i, uint64(len(m.ChunkData)))
 		i--
-		dAtA[i] = 0x52
-	}
-	if m.OffsetTo != 0 {
-		i = encodeVarintEntity(dAtA, i, uint64(m.OffsetTo))
-		i--
-		dAtA[i] = 0x48
-	}
-	if m.OffsetFrom != 0 {
-		i = encodeVarintEntity(dAtA, i, uint64(m.OffsetFrom))
-		i--
-		dAtA[i] = 0x40
-	}
-	if m.Fsize != 0 {
-		i = encodeVarintEntity(dAtA, i, uint64(m.Fsize))
-		i--
-		dAtA[i] = 0x38
-	}
-	if len(m.Fsum) > 0 {
-		i -= len(m.Fsum)
-		copy(dAtA[i:], m.Fsum)
-		i = encodeVarintEntity(dAtA, i, uint64(len(m.Fsum)))
-		i--
-		dAtA[i] = 0x32
+		dAtA[i] = 0x62
 	}
 	if len(m.Finfo) > 0 {
 		i -= len(m.Finfo)
 		copy(dAtA[i:], m.Finfo)
 		i = encodeVarintEntity(dAtA, i, uint64(len(m.Finfo)))
 		i--
-		dAtA[i] = 0x2a
+		dAtA[i] = 0x5a
 	}
-	if len(m.Ftype) > 0 {
-		i -= len(m.Ftype)
-		copy(dAtA[i:], m.Ftype)
-		i = encodeVarintEntity(dAtA, i, uint64(len(m.Ftype)))
+	if m.ChunkSize != 0 {
+		i = encodeVarintEntity(dAtA, i, uint64(m.ChunkSize))
+		i--
+		dAtA[i] = 0x50
+	}
+	if m.ChunkOffset != 0 {
+		i = encodeVarintEntity(dAtA, i, uint64(m.ChunkOffset))
+		i--
+		dAtA[i] = 0x48
+	}
+	if m.ChunkTotal != 0 {
+		i = encodeVarintEntity(dAtA, i, uint64(m.ChunkTotal))
+		i--
+		dAtA[i] = 0x40
+	}
+	if m.ChunkNum != 0 {
+		i = encodeVarintEntity(dAtA, i, uint64(m.ChunkNum))
+		i--
+		dAtA[i] = 0x38
+	}
+	if len(m.ChunkHash) > 0 {
+		i -= len(m.ChunkHash)
+		copy(dAtA[i:], m.ChunkHash)
+		i = encodeVarintEntity(dAtA, i, uint64(len(m.ChunkHash)))
+		i--
+		dAtA[i] = 0x32
+	}
+	if m.Fsize != 0 {
+		i = encodeVarintEntity(dAtA, i, uint64(m.Fsize))
+		i--
+		dAtA[i] = 0x28
+	}
+	if len(m.Fhash) > 0 {
+		i -= len(m.Fhash)
+		copy(dAtA[i:], m.Fhash)
+		i = encodeVarintEntity(dAtA, i, uint64(len(m.Fhash)))
 		i--
 		dAtA[i] = 0x22
 	}
-	if len(m.Path) > 0 {
-		i -= len(m.Path)
-		copy(dAtA[i:], m.Path)
-		i = encodeVarintEntity(dAtA, i, uint64(len(m.Path)))
+	if len(m.Fpath) > 0 {
+		i -= len(m.Fpath)
+		copy(dAtA[i:], m.Fpath)
+		i = encodeVarintEntity(dAtA, i, uint64(len(m.Fpath)))
 		i--
 		dAtA[i] = 0x1a
 	}
@@ -536,8 +527,8 @@ func (m *File) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x12
 	}
-	if m.Status != 0 {
-		i = encodeVarintEntity(dAtA, i, uint64(m.Status))
+	if m.Action != 0 {
+		i = encodeVarintEntity(dAtA, i, uint64(m.Action))
 		i--
 		dAtA[i] = 0x8
 	}
@@ -575,10 +566,10 @@ func (m *Misc) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x12
 	}
-	if len(m.Mtype) > 0 {
-		i -= len(m.Mtype)
-		copy(dAtA[i:], m.Mtype)
-		i = encodeVarintEntity(dAtA, i, uint64(len(m.Mtype)))
+	if len(m.Type) > 0 {
+		i -= len(m.Type)
+		copy(dAtA[i:], m.Type)
+		i = encodeVarintEntity(dAtA, i, uint64(len(m.Type)))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -602,39 +593,45 @@ func (m *File) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Status != 0 {
-		n += 1 + sovEntity(uint64(m.Status))
+	if m.Action != 0 {
+		n += 1 + sovEntity(uint64(m.Action))
 	}
 	l = len(m.Comment)
 	if l > 0 {
 		n += 1 + l + sovEntity(uint64(l))
 	}
-	l = len(m.Path)
+	l = len(m.Fpath)
 	if l > 0 {
 		n += 1 + l + sovEntity(uint64(l))
 	}
-	l = len(m.Ftype)
-	if l > 0 {
-		n += 1 + l + sovEntity(uint64(l))
-	}
-	l = len(m.Finfo)
-	if l > 0 {
-		n += 1 + l + sovEntity(uint64(l))
-	}
-	l = len(m.Fsum)
+	l = len(m.Fhash)
 	if l > 0 {
 		n += 1 + l + sovEntity(uint64(l))
 	}
 	if m.Fsize != 0 {
 		n += 1 + sovEntity(uint64(m.Fsize))
 	}
-	if m.OffsetFrom != 0 {
-		n += 1 + sovEntity(uint64(m.OffsetFrom))
+	l = len(m.ChunkHash)
+	if l > 0 {
+		n += 1 + l + sovEntity(uint64(l))
 	}
-	if m.OffsetTo != 0 {
-		n += 1 + sovEntity(uint64(m.OffsetTo))
+	if m.ChunkNum != 0 {
+		n += 1 + sovEntity(uint64(m.ChunkNum))
 	}
-	l = len(m.Data)
+	if m.ChunkTotal != 0 {
+		n += 1 + sovEntity(uint64(m.ChunkTotal))
+	}
+	if m.ChunkOffset != 0 {
+		n += 1 + sovEntity(uint64(m.ChunkOffset))
+	}
+	if m.ChunkSize != 0 {
+		n += 1 + sovEntity(uint64(m.ChunkSize))
+	}
+	l = len(m.Finfo)
+	if l > 0 {
+		n += 1 + l + sovEntity(uint64(l))
+	}
+	l = len(m.ChunkData)
 	if l > 0 {
 		n += 1 + l + sovEntity(uint64(l))
 	}
@@ -650,7 +647,7 @@ func (m *Misc) Size() (n int) {
 	}
 	var l int
 	_ = l
-	l = len(m.Mtype)
+	l = len(m.Type)
 	if l > 0 {
 		n += 1 + l + sovEntity(uint64(l))
 	}
@@ -701,9 +698,9 @@ func (m *File) Unmarshal(dAtA []byte) error {
 		switch fieldNum {
 		case 1:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Status", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Action", wireType)
 			}
-			m.Status = 0
+			m.Action = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowEntity
@@ -713,7 +710,7 @@ func (m *File) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Status |= int32(b&0x7F) << shift
+				m.Action |= int32(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -722,7 +719,7 @@ func (m *File) Unmarshal(dAtA []byte) error {
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Comment", wireType)
 			}
-			var byteLen int
+			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowEntity
@@ -732,31 +729,29 @@ func (m *File) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				byteLen |= int(b&0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			if byteLen < 0 {
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
 				return ErrInvalidLengthEntity
 			}
-			postIndex := iNdEx + byteLen
+			postIndex := iNdEx + intStringLen
 			if postIndex < 0 {
 				return ErrInvalidLengthEntity
 			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Comment = append(m.Comment[:0], dAtA[iNdEx:postIndex]...)
-			if m.Comment == nil {
-				m.Comment = []byte{}
-			}
+			m.Comment = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 3:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Path", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Fpath", wireType)
 			}
-			var byteLen int
+			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowEntity
@@ -766,31 +761,29 @@ func (m *File) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				byteLen |= int(b&0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			if byteLen < 0 {
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
 				return ErrInvalidLengthEntity
 			}
-			postIndex := iNdEx + byteLen
+			postIndex := iNdEx + intStringLen
 			if postIndex < 0 {
 				return ErrInvalidLengthEntity
 			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Path = append(m.Path[:0], dAtA[iNdEx:postIndex]...)
-			if m.Path == nil {
-				m.Path = []byte{}
-			}
+			m.Fpath = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 4:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Ftype", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Fhash", wireType)
 			}
-			var byteLen int
+			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowEntity
@@ -800,27 +793,152 @@ func (m *File) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				byteLen |= int(b&0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			if byteLen < 0 {
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
 				return ErrInvalidLengthEntity
 			}
-			postIndex := iNdEx + byteLen
+			postIndex := iNdEx + intStringLen
 			if postIndex < 0 {
 				return ErrInvalidLengthEntity
 			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Ftype = append(m.Ftype[:0], dAtA[iNdEx:postIndex]...)
-			if m.Ftype == nil {
-				m.Ftype = []byte{}
-			}
+			m.Fhash = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 5:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Fsize", wireType)
+			}
+			m.Fsize = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEntity
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Fsize |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 6:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ChunkHash", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEntity
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthEntity
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthEntity
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ChunkHash = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 7:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ChunkNum", wireType)
+			}
+			m.ChunkNum = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEntity
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.ChunkNum |= int32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 8:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ChunkTotal", wireType)
+			}
+			m.ChunkTotal = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEntity
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.ChunkTotal |= int32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 9:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ChunkOffset", wireType)
+			}
+			m.ChunkOffset = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEntity
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.ChunkOffset |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 10:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ChunkSize", wireType)
+			}
+			m.ChunkSize = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEntity
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.ChunkSize |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 11:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Finfo", wireType)
 			}
@@ -854,9 +972,9 @@ func (m *File) Unmarshal(dAtA []byte) error {
 				m.Finfo = []byte{}
 			}
 			iNdEx = postIndex
-		case 6:
+		case 12:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Fsum", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field ChunkData", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -883,100 +1001,9 @@ func (m *File) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Fsum = append(m.Fsum[:0], dAtA[iNdEx:postIndex]...)
-			if m.Fsum == nil {
-				m.Fsum = []byte{}
-			}
-			iNdEx = postIndex
-		case 7:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Fsize", wireType)
-			}
-			m.Fsize = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEntity
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.Fsize |= int64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 8:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field OffsetFrom", wireType)
-			}
-			m.OffsetFrom = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEntity
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.OffsetFrom |= int64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 9:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field OffsetTo", wireType)
-			}
-			m.OffsetTo = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEntity
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.OffsetTo |= int64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 10:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Data", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEntity
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthEntity
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthEntity
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Data = append(m.Data[:0], dAtA[iNdEx:postIndex]...)
-			if m.Data == nil {
-				m.Data = []byte{}
+			m.ChunkData = append(m.ChunkData[:0], dAtA[iNdEx:postIndex]...)
+			if m.ChunkData == nil {
+				m.ChunkData = []byte{}
 			}
 			iNdEx = postIndex
 		default:
@@ -1032,7 +1059,7 @@ func (m *Misc) Unmarshal(dAtA []byte) error {
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Mtype", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Type", wireType)
 			}
 			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
@@ -1060,7 +1087,7 @@ func (m *Misc) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Mtype = string(dAtA[iNdEx:postIndex])
+			m.Type = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
