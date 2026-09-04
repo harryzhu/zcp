@@ -18,7 +18,10 @@ func gClientIsSame(fpath string) bool {
 		return false
 	}
 	cpbf := file2pbFile(fpath)
-	resp, _ := GetClient().Head(context.Background(), &cpbf)
+	resp, err := GetClient().Head(context.Background(), &cpbf)
+	if err != nil {
+		return false
+	}
 	if resp.Action == 1 {
 		return true
 	}
@@ -43,6 +46,7 @@ func gClientSyncFolderSymlink() error {
 			client.SyncMisc(context.Background(), &pbm)
 		}
 	}
+
 	return nil
 }
 
