@@ -12,12 +12,13 @@ import (
 )
 
 var (
-	Host      string
-	Port      string
-	IsSerial  bool = false
-	IsDebug   bool = false
-	IsWithTLS bool = false
-	LogDir    string
+	Host       string
+	Port       string
+	IsSerial   bool = false
+	IsDebug    bool = false
+	IsWithTLS  bool = false
+	IsWithDiff bool = true
+	LogDir     string
 	//
 	SourceDir string
 	TargetDir string

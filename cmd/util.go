@@ -255,7 +255,7 @@ func IsFileNeeded(fpath string, finfo fs.FileInfo) bool {
 	}
 
 	if MaxSize != -1 {
-		if fsize > MaxSize {
+		if fsize > MinSize {
 			return false
 		}
 	}

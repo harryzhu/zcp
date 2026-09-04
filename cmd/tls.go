@@ -69,7 +69,7 @@ func _getTLSClient() pb.FileTransferClient {
 
 func _buildGrpcClientConn() *grpc.ClientConn {
 	hostPort := strings.Join([]string{Host, Port}, ":")
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	clientConn, err := grpc.DialContext(ctx, hostPort,

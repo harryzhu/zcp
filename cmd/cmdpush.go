@@ -31,7 +31,7 @@ var pushCmd = &cobra.Command{
 			MinSize = MinSizeMB << 20
 		}
 		if MaxSizeMB != -1 {
-			MaxSize = MaxSizeMB << 20
+			MaxSize = MinSizeMB << 20
 		}
 		if MinAge != "" {
 			MinAgeUnix = TimeStr2Unix(MinAge)
@@ -87,6 +87,7 @@ func init() {
 
 	pushCmd.PersistentFlags().StringVar(&SourceDir, "source-dir", "", "source dir for file push")
 	//
+	pushCmd.Flags().BoolVar(&IsWithDiff, "with-diff", true, "if diff local files from remote before push")
 	pushCmd.Flags().BoolVar(&IsFollowSymlink, "follow-symlink", false, "if copy the linked file rather than the symlink ...")
 	pushCmd.Flags().BoolVar(&IsIgnoreDotFile, "ignore-dot-file", false, "ignore the file if its file name starts with dot(.), i.e.: .DS_Store")
 	//

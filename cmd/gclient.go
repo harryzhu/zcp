@@ -14,6 +14,9 @@ import (
 )
 
 func gClientIsSame(fpath string) bool {
+	if IsWithDiff == false {
+		return false
+	}
 	cpbf := file2pbFile(fpath)
 	resp, _ := GetClient().Head(context.Background(), &cpbf)
 	if resp.Action == 1 {
