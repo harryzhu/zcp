@@ -39,11 +39,22 @@ func gClientIsSame(fpath string, finfo fs.FileInfo, clientHead pb.FileTransferCl
 	if finfo.Size() < ignoreDiffSize {
 		return false
 	}
-	cpbf := file2pbFile(fpath)
+	cpbf := file2pbFile(fpath, false)
 	resp, err := clientHead.Head(context.Background(), &cpbf)
 	if err != nil {
 		return false
 	}
+	if resp.Action == -1 {
+		return false
+	}
+
+	if resp.Action == 0 && resp.Fhash != "" {
+		DebugInfo("gClientIsSame", "checking hash => ", filepath.Base(fpath))
+		if resp.Fhash != hashFile(fpath) {
+			return false
+		}
+	}
+
 	if resp.Action == 1 {
 		return true
 	}
@@ -83,10 +94,6 @@ func selectFiles() error {
 	wg := sync.WaitGroup{}
 
 	clients := []pb.FileTransferClient{
-		GetClient(),
-		GetClient(),
-		GetClient(),
-		GetClient(),
 		GetClient(),
 		GetClient(),
 		GetClient(),
@@ -142,7 +149,7 @@ func selectFiles() error {
 		}(clients[idx])
 
 		idx++
-		if idx > 7 {
+		if idx > 3 {
 			idx = 0
 		}
 
@@ -162,7 +169,7 @@ func NewPbFile() pb.File {
 	return pb.File{}
 }
 
-func file2pbFile(fpath string) pb.File {
+func file2pbFile(fpath string, withHash bool) pb.File {
 	fpath = ToUnixSlash(fpath)
 	pbFile := pb.File{}
 	finfo, err := os.Stat(fpath)
@@ -174,7 +181,10 @@ func file2pbFile(fpath string) pb.File {
 	pbFile.Action = 0
 	pbFile.Comment = ""
 	pbFile.Fpath = strings.TrimPrefix(strings.TrimPrefix(fpath, SourceDir), "/")
-	pbFile.Fhash = hashFile(fpath)
+	pbFile.Fhash = ""
+	if withHash {
+		pbFile.Fhash = hashFile(fpath)
+	}
 	pbFile.Fsize = finfo.Size()
 	pbFile.Finfo = fileInfo2Bytes(finfo)
 
@@ -187,7 +197,6 @@ func file2pbFile(fpath string) pb.File {
 	pbFile.ChunkSize = 0
 	pbFile.ChunkData = nil
 	//
-
 	return pbFile
 }
 

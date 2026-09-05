@@ -34,7 +34,7 @@ func chunkSend(fpath string, action int32) error {
 
 	offset := int64(0)
 	chunkNum := int32(0)
-	pbf := file2pbFile(fpath)
+	pbf := file2pbFile(fpath, true)
 	pbf.Action = 0
 	for {
 		n, err := reader.Read(buffer)
@@ -52,7 +52,6 @@ func chunkSend(fpath string, action int32) error {
 		}
 
 		err = clientStream.Send(&pbf)
-		//PrintError("chunkSend: Send", err)
 		FatalError("chunkSend: Send", err)
 
 		offset += int64(n)

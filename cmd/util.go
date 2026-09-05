@@ -98,7 +98,7 @@ func hashFile(fpath string) string {
 
 	r := bufio.NewReader(fh)
 
-	var buf []byte = make([]byte, 8192)
+	var buf []byte = make([]byte, 4096)
 	for {
 		n, err := r.Read(buf)
 		if err != nil {
@@ -110,6 +110,32 @@ func hashFile(fpath string) string {
 		hasher.Write(buf[:n])
 	}
 
+	fh.Close()
+	return hex.EncodeToString(hasher.Sum(nil))
+}
+
+func hashBlock(fpath string, count4k int) string {
+	fh, err := os.Open(fpath)
+	if err != nil {
+		PrintError("hashBlock", err)
+		return ""
+	}
+	var hasher hash.Hash
+	hasher = xxh3.New()
+	r := bufio.NewReader(fh)
+	var buf []byte = make([]byte, 4096)
+	bcount := 0
+	for {
+		if bcount >= count4k {
+			break
+		}
+		n, err := r.Read(buf)
+		if err == io.EOF || n == 0 {
+			break
+		}
+		hasher.Write(buf[:n])
+		bcount++
+	}
 	fh.Close()
 	return hex.EncodeToString(hasher.Sum(nil))
 }

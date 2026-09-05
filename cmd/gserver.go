@@ -34,10 +34,16 @@ func (s *FileTransferService) Head(ctx context.Context, pbIn *pb.File) (*pb.File
 	}
 
 	h := hashFile(dstPath)
-	if h != pbIn.Fhash {
-		resp.Action = -1
+	if pbIn.Fhash == "" {
+		resp.Action = 0
 		resp.Fhash = h
 		return &resp, nil
+	} else {
+		if h != pbIn.Fhash {
+			resp.Action = -1
+			resp.Fhash = h
+			return &resp, nil
+		}
 	}
 
 	resp.Action = 1

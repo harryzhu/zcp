@@ -9,7 +9,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/vmihailenco/msgpack/v5 v5.4.1
 	github.com/zeebo/xxh3 v1.1.0
-	google.golang.org/grpc v1.83.1
+	google.golang.org/grpc v1.83.2
 	pb v0.0.0-00010101000000-000000000000
 )
 

@@ -78,6 +78,9 @@
 #
 # --with-tls 是否启用TLS加密传输，默认不启用；该参数需要合格的服务器端、客户端证书同时有效。证书放在 cert 目录下，域名用户自定义，但文件夹结构、名称不能修改。启用 --with-tls = true 传输时， --host= 必须是证书里面指定的域名，示例证书域名是： --host="files.zcp.corpnet"
 #
+# 广域网（低带宽场景）：
+./zcp push --source-dir=/data/hadoop/logs/nn01 --host=192.168.0.33 --port=9527 --with-diff=false
+
 ```
 
 3） TLS 加密传输
