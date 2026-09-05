@@ -44,6 +44,10 @@ var pushCmd = &cobra.Command{
 		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
+		if IsWithTLS {
+			PrintlnInfo("green", "PUSH", "in TLS mode")
+		}
+		gClientHandshake()
 
 		wg := sync.WaitGroup{}
 		wg.Add(3)

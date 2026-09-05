@@ -10,7 +10,9 @@ var (
 	totalSize           int64  = 0
 	totalNum            int32  = 0
 	largeSmallThreshold int64  = 32 << 20
+	ignoreDiffSize      int64  = 2 << 20
 	AllDone             string = "__ALL_DONE__"
+	HealthCheck         string = "__HEALTHCHECK__"
 )
 
 var (

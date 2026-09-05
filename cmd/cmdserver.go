@@ -21,6 +21,7 @@ var serverCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		if IsWithTLS {
+			PrintlnInfo("green", "SERVER", "in TLS mode")
 			StartTLSFileTransferServer()
 		} else {
 			StartFileTransferServer()

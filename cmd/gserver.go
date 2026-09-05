@@ -13,6 +13,11 @@ type FileTransferService struct{}
 func (s *FileTransferService) Head(ctx context.Context, pbIn *pb.File) (*pb.File, error) {
 	resp := NewPbFile()
 
+	if pbIn.Comment == "__HEALTHCHECK__" {
+		resp.Action = 200
+		return &resp, nil
+	}
+
 	dstPath := ToUnixSlash(filepath.Join(TargetDir, pbIn.Fpath))
 	DebugInfo("Head", dstPath)
 

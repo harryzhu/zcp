@@ -52,7 +52,8 @@ func chunkSend(fpath string, action int32) error {
 		}
 
 		err = clientStream.Send(&pbf)
-		PrintError("chunkSend: Send", err)
+		//PrintError("chunkSend: Send", err)
+		FatalError("chunkSend: Send", err)
 
 		offset += int64(n)
 		chunkNum++
@@ -60,7 +61,7 @@ func chunkSend(fpath string, action int32) error {
 
 	resp, err := clientStream.CloseAndRecv()
 	if err != nil {
-		PrintError("chunkSend: CloseAndRecv", err)
+		FatalError("chunkSend: CloseAndRecv", err)
 	}
 
 	if resp.Action == -1 {

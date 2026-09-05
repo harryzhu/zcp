@@ -8,10 +8,10 @@ import (
 	"os"
 	pb "pb"
 	"strings"
-	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 var (
@@ -69,14 +69,15 @@ func _getTLSClient() pb.FileTransferClient {
 
 func _buildGrpcClientConn() *grpc.ClientConn {
 	hostPort := strings.Join([]string{Host, Port}, ":")
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
 
-	clientConn, err := grpc.DialContext(ctx, hostPort,
-		grpc.WithInsecure(),
-		grpc.WithBlock(),
-		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(maxGrpcMessageSize), grpc.MaxCallSendMsgSize(maxGrpcMessageSize)))
-
+	clientConn, err := grpc.NewClient(
+		hostPort,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(
+			grpc.MaxCallRecvMsgSize(maxGrpcMessageSize),
+			grpc.MaxCallSendMsgSize(maxGrpcMessageSize),
+		),
+	)
 	FatalError("_buildGrpcClientConn", err)
 
 	return clientConn
@@ -103,10 +104,16 @@ func _buildGrpcTLSClientConn() *grpc.ClientConn {
 				Certificates: []tls.Certificate{certificate},
 				RootCAs:      certPool,
 			})),
-		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(maxGrpcMessageSize), grpc.MaxCallSendMsgSize(maxGrpcMessageSize)),
+		grpc.WithDefaultCallOptions(
+			grpc.MaxCallRecvMsgSize(maxGrpcMessageSize),
+			grpc.MaxCallSendMsgSize(maxGrpcMessageSize)),
 	}
 
-	clientConn, err := grpc.Dial(hostPort, opts...)
+	//clientConn, err := grpc.Dial(hostPort, opts...)
+	clientConn, err := grpc.NewClient(
+		hostPort,
+		opts...,
+	)
 	FatalError("gClientConn: init", err)
 
 	return clientConn
@@ -122,7 +129,6 @@ func StartFileTransferServer() {
 	}
 
 	grpcServerFileTransfer := grpc.NewServer(
-		grpc.MaxMsgSize(maxGrpcMessageSize),
 		grpc.MaxRecvMsgSize(maxGrpcMessageSize),
 		grpc.MaxSendMsgSize(maxGrpcMessageSize))
 
@@ -154,7 +160,6 @@ func StartTLSFileTransferServer() {
 			ClientCAs:    certPool,
 		},
 		)),
-		grpc.MaxMsgSize(maxGrpcMessageSize),
 		grpc.MaxRecvMsgSize(maxGrpcMessageSize),
 		grpc.MaxSendMsgSize(maxGrpcMessageSize),
 	}

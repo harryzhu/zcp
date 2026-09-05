@@ -75,7 +75,7 @@ func DebugInfo(prefix string, args ...any) {
 		}
 		line := strings.Join(info, "")
 		go WriteLog("DEBUG", prefix, line)
-		log.Printf("INFO: %v: %v\n", prefix, line)
+		log.Printf("DEBUG: %v: %v\n", prefix, line)
 	}
 }
 

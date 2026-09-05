@@ -9,16 +9,38 @@ import (
 	"path/filepath"
 	pb "pb"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 )
 
-func gClientIsSame(fpath string) bool {
+func gClientHandshake() {
+	cpbf := NewPbFile()
+	cpbf.Comment = HealthCheck
+	t1 := GetNowTime()
+	resp, err := GetClient().Head(context.Background(), &cpbf)
+	if err != nil {
+		FatalError("cannot connect to server", err)
+	}
+	if resp.Action != 200 {
+		FatalError("cannot connect to server", err)
+	}
+	if IsWithTLS {
+		PrintlnInfo("green", "Server Status", "Connected. Latency: ", time.Since(t1))
+	} else {
+		PrintlnInfo("purple", "Server Status", "Connected. Latency: ", time.Since(t1))
+	}
+}
+
+func gClientIsSame(fpath string, finfo fs.FileInfo, clientHead pb.FileTransferClient) bool {
 	if IsWithDiff == false {
 		return false
 	}
+	if finfo.Size() < ignoreDiffSize {
+		return false
+	}
 	cpbf := file2pbFile(fpath)
-	resp, err := GetClient().Head(context.Background(), &cpbf)
+	resp, err := clientHead.Head(context.Background(), &cpbf)
 	if err != nil {
 		return false
 	}
@@ -29,6 +51,7 @@ func gClientIsSame(fpath string) bool {
 }
 
 func gClientSyncFolderSymlink() error {
+	DebugInfo("gClientSyncFolderSymlink", "...")
 	client := GetClient()
 	if len(symLinkMap) > 0 {
 		b, err := Map2Bytes(symLinkMap)
@@ -56,9 +79,22 @@ func selectFiles() error {
 		PrintError("selectFiles", err)
 		return err
 	}
+	var sem chan struct{} = make(chan struct{}, 8)
+	wg := sync.WaitGroup{}
 
+	clients := []pb.FileTransferClient{
+		GetClient(),
+		GetClient(),
+		GetClient(),
+		GetClient(),
+		GetClient(),
+		GetClient(),
+		GetClient(),
+		GetClient(),
+	}
+
+	idx := 0
 	var relFpath string
-
 	filepath.Walk(SourceDir, func(fpath string, finfo fs.FileInfo, err error) error {
 		if err != nil {
 			PrintError("selectFiles", err)
@@ -83,20 +119,38 @@ func selectFiles() error {
 		if IsFileNeeded(fpath, finfo) == false {
 			return nil
 		}
+		sem <- struct{}{}
+		wg.Add(1)
 
-		if gClientIsSame(fpath) == true {
-			DebugInfo("[SKIP]", strings.TrimPrefix(strings.TrimPrefix(fpath, SourceDir), "/"))
+		go func(clientHead pb.FileTransferClient) error {
+			defer func() {
+				<-sem
+				wg.Done()
+			}()
+			if gClientIsSame(fpath, finfo, clientHead) == true {
+				DebugInfo("[SKIP]", strings.TrimPrefix(strings.TrimPrefix(fpath, SourceDir), "/"))
+				return nil
+			}
+
+			if finfo.Size() > largeSmallThreshold {
+				chanLargeFiles <- fpath
+			} else {
+				chanSmallFiles <- fpath
+			}
+
 			return nil
-		}
+		}(clients[idx])
 
-		if finfo.Size() > largeSmallThreshold {
-			chanLargeFiles <- fpath
-		} else {
-			chanSmallFiles <- fpath
+		idx++
+		if idx > 7 {
+			idx = 0
 		}
 
 		return nil
 	})
+
+	wg.Wait()
+	close(sem)
 
 	chanLargeFiles <- AllDone
 	chanSmallFiles <- AllDone
