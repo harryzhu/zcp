@@ -36,9 +36,9 @@ func gClientIsSame(fpath string, finfo fs.FileInfo, clientHead pb.FileTransferCl
 	if IsWithDiff == false {
 		return false
 	}
-	if finfo.Size() < ignoreDiffSize {
-		return false
-	}
+	// if finfo.Size() < ignoreDiffSize {
+	// 	return false
+	// }
 	cpbf := file2pbFile(fpath, false)
 	resp, err := clientHead.Head(context.Background(), &cpbf)
 	if err != nil {
@@ -50,8 +50,12 @@ func gClientIsSame(fpath string, finfo fs.FileInfo, clientHead pb.FileTransferCl
 
 	if resp.Action == 0 && resp.Fhash != "" {
 		DebugInfo("gClientIsSame", "checking hash => ", filepath.Base(fpath))
-		if resp.Fhash != hashFile(fpath) {
+		clientHash := hashFile(fpath)
+		if resp.Fhash != clientHash {
 			return false
+		}
+		if resp.Fhash == clientHash {
+			return true
 		}
 	}
 
@@ -201,16 +205,15 @@ func file2pbFile(fpath string, withHash bool) pb.File {
 }
 
 func logSendFailure() error {
-	if len(sendFailure) > 0 {
-		fp, err := os.OpenFile(ToUnixSlash(filepath.Join(LogDir, "send_errors.log")),
-			os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.ModePerm)
-		FatalError("logSendFailure", err)
-		for k, v := range sendFailure {
-			WriteFile(fp, fmt.Appendf([]byte(""), "%s, %s\n", k, v))
-		}
-		fp.Close()
+	fp, err := os.OpenFile(ToUnixSlash(filepath.Join(LogDir, "send_errors.log")),
+		os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.ModePerm)
+	FatalError("logSendFailure", err)
 
-	}
+	sendFailure.Range(func(key any, val any) bool {
+		WriteFile(fp, fmt.Appendf([]byte(""), "%s, %s\n", key.(string), val.(string)))
+		return true
+	})
+	fp.Close()
 
 	return nil
 }

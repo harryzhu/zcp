@@ -7,11 +7,11 @@ import (
 	"path/filepath"
 	pb "pb"
 	"strings"
+	"sync"
 )
 
 var (
-	receiveWrites map[string]*os.File = make(map[string]*os.File, 1024)
-	sendFailure   map[string]string   = make(map[string]string, 1024)
+	sendFailure sync.Map
 )
 
 func chunkSend(fpath string, action int32) error {
@@ -64,7 +64,7 @@ func chunkSend(fpath string, action int32) error {
 	}
 
 	if resp.Action == -1 {
-		sendFailure[fpath] = resp.Comment
+		sendFailure.Store(fpath, resp.Comment)
 		PrintlnInfo("red", "chunkSend: ERROR", resp.Action, resp.Comment)
 	}
 
@@ -85,17 +85,11 @@ func chunkSave(pbFile *pb.File) error {
 		dstWriter, err = os.OpenFile(targetPathTemp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.ModePerm)
 		dstWriter.Truncate(pbFile.Fsize)
 	} else {
-		if val, ok := receiveWrites[targetPathTemp]; ok {
-			dstWriter = val
-		} else {
-			dstWriter, err = os.OpenFile(targetPathTemp, os.O_WRONLY, os.ModePerm)
-			receiveWrites[targetPathTemp] = dstWriter
-		}
+		dstWriter, err = os.OpenFile(targetPathTemp, os.O_WRONLY, os.ModePerm)
 	}
 
 	if err != nil {
 		dstWriter.Close()
-		delete(receiveWrites, targetPathTemp)
 		PrintError("chunkSend: os.OpenFile", err)
 		return err
 	}
@@ -103,14 +97,12 @@ func chunkSave(pbFile *pb.File) error {
 	if pbFile.ChunkData != nil {
 		cdata, err := UnZstdBytes(pbFile.ChunkData)
 		if err != nil {
-			delete(receiveWrites, targetPathTemp)
 			PrintError("chunkSend: UnZstdBytes", err)
 			return err
 		}
 		_, err = dstWriter.WriteAt(cdata, pbFile.ChunkOffset)
 		if err != nil {
 			dstWriter.Close()
-			delete(receiveWrites, targetPathTemp)
 			PrintError("chunkSend: WriteAt", err)
 			return err
 		}
@@ -118,7 +110,6 @@ func chunkSave(pbFile *pb.File) error {
 
 	if pbFile.Action == 100 || pbFile.Action == 200 {
 		dstWriter.Close()
-		delete(receiveWrites, targetPathTemp)
 		if hashFile(targetPathTemp) == pbFile.Fhash {
 			err := os.Rename(targetPathTemp, targetPath)
 			if err != nil {
