@@ -127,15 +127,20 @@
 如果域名发生改变，所有证书需要重新生成
 
 
-## On Windows
+## On Windows: 权限问题
 
 1. 如果 `zcp server` 端运行在 `Windows`，客户端运行在 `Linux/Mac` 上，需要注意`软链接权限`问题：
   
-  1. 如果客户端 `zcp push` 也是运行在 `Windows` 上，`server端` 可以正常接收所有文件；
+1. 如果客户端 `zcp push` 也是运行在 `Windows` 上，`server端` 可以正常接收所有文件；
 
-  1. 如果客户端 `zcp push` 运行在 `Linux/Mac` 上，如果传输的文件中没有软链接，`server 端` 可以正常接收所有文件；如果包含 `软链接`，server 端必须运行在`管理员权限模式`下，才能正常创建软链接，否则会显示权限不足的错误；
+1. 如果客户端 `zcp push` 运行在 `Linux/Mac` 上，如果传输的文件中没有软链接，`server 端` 可以正常接收所有文件；如果包含 `软链接`，server 端必须运行在`管理员权限模式`下，才能正常创建软链接，否则会显示权限不足的错误；
 
-  1. 客户端 `zcp push` 如果设置参数 `--follow-symlink=true`，server端就`无需`运行在管理员权限模式下，客户端会传输整个文件`而不是软链接`。
+1. 客户端 `zcp push` 如果设置参数 `--follow-symlink=true`，server端就`无需`运行在管理员权限模式下，客户端会传输整个文件`而不是软链接`。
+
+1. 客户端 `--follow-symlink=false` 时，仅传输软链接，不传输文件，这要求 `Windows下的server端` 运行在`管理员权限模式`下；
+
+1. 如果 `server 端` 运行在 `Linux/Mac` 下，没有权限问题，也`不需要运行在管理员模式`下；
+
 
 
 
