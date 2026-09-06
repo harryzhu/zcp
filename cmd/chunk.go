@@ -82,6 +82,13 @@ func chunkSave(pbFile *pb.File) error {
 	var err error
 
 	if pbFile.ChunkNum == 0 {
+		if Exists(targetPathTemp) {
+			err := os.Remove(targetPathTemp)
+			if err != nil {
+				PrintError("chunkSave", err)
+				return err
+			}
+		}
 		dstWriter, err = os.OpenFile(targetPathTemp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.ModePerm)
 		dstWriter.Truncate(pbFile.Fsize)
 	} else {
@@ -90,22 +97,23 @@ func chunkSave(pbFile *pb.File) error {
 
 	if err != nil {
 		dstWriter.Close()
-		PrintError("chunkSend: os.OpenFile", err)
+		PrintError("chunkSave: os.OpenFile", err)
 		return err
 	}
 
 	if pbFile.ChunkData != nil {
 		cdata, err := UnZstdBytes(pbFile.ChunkData)
 		if err != nil {
-			PrintError("chunkSend: UnZstdBytes", err)
+			PrintError("chunkSave: UnZstdBytes", err)
 			return err
 		}
 		_, err = dstWriter.WriteAt(cdata, pbFile.ChunkOffset)
 		if err != nil {
 			dstWriter.Close()
-			PrintError("chunkSend: WriteAt", err)
+			PrintError("chunkSave: WriteAt", err)
 			return err
 		}
+		dstWriter.Close()
 	}
 
 	if pbFile.Action == 100 || pbFile.Action == 200 {
@@ -113,7 +121,7 @@ func chunkSave(pbFile *pb.File) error {
 		if hashFile(targetPathTemp) == pbFile.Fhash {
 			err := os.Rename(targetPathTemp, targetPath)
 			if err != nil {
-				PrintError("chunkSend: os.Rename", err)
+				PrintError("chunkSave: os.Rename", err)
 				return err
 			}
 		}
@@ -122,13 +130,13 @@ func chunkSave(pbFile *pb.File) error {
 			finfo := bytes2FileInfo(pbFile.Finfo)
 			err = os.Chmod(targetPath, finfo.Mode)
 			if err != nil {
-				PrintError("chunkSend: os.Chmod", err)
+				PrintError("chunkSave: os.Chmod", err)
 				return err
 			}
 
 			err = os.Chtimes(targetPath, finfo.Mtime, finfo.Mtime)
 			if err != nil {
-				PrintError("chunkSend: os.Chtimes", err)
+				PrintError("chunkSave: os.Chtimes", err)
 				return err
 			}
 		}

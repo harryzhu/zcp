@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	pb "pb"
+	"strings"
 )
 
 type FileTransferService struct{}
@@ -15,6 +16,7 @@ func (s *FileTransferService) Head(ctx context.Context, pbIn *pb.File) (*pb.File
 
 	if pbIn.Comment == "__HEALTHCHECK__" {
 		resp.Action = 200
+		resp.Comment = strings.Join([]string{"server", runPlatform}, ",")
 		return &resp, nil
 	}
 
@@ -80,7 +82,7 @@ func (s *FileTransferService) SyncMisc(ctx context.Context, miscIn *pb.Misc) (*p
 			for sym, dstFile := range symlist {
 				sym = ToUnixSlash(filepath.Join(TargetDir, sym))
 				MakeSymlink(dstFile, sym)
-				DebugInfo("SyncMisc: MakeSymlink", "[symbolink]: ", sym, " => [file]: ", dstFile)
+				DebugInfo("SyncMisc: MakeSymlink", "[file]: ", dstFile, " <=== [symbolink]: ", sym)
 			}
 		}
 
@@ -105,6 +107,7 @@ func (s *FileTransferService) StreamReceive(stream pb.FileTransfer_StreamReceive
 		err = chunkSave(pbIn)
 		if err != nil {
 			PrintError("StreamReceive", err)
+			stream.SendAndClose(&pb.File{Action: -1, Comment: err.Error()})
 		}
 
 	}

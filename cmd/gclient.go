@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-func gClientHandshake() {
+func gClientHandshake() string {
 	cpbf := NewPbFile()
 	cpbf.Comment = HealthCheck
 	t1 := GetNowTime()
@@ -30,6 +30,7 @@ func gClientHandshake() {
 	} else {
 		PrintlnInfo("purple", "Server Status", "Connected. Latency: ", time.Since(t1))
 	}
+	return resp.Comment
 }
 
 func gClientIsSame(fpath string, clientHead pb.FileTransferClient) bool {

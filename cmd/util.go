@@ -219,12 +219,14 @@ func MakeSymlink(targetFile string, sym string) error {
 	targetFile = ToUnixSlash(targetFile)
 	sym = ToUnixSlash(sym)
 
-	if !Exists(sym) {
-		err := os.Symlink(targetFile, sym)
-		if err != nil {
-			PrintError("MakeSymlink", err)
-			return err
-		}
+	if Exists(sym) {
+		return nil
+	}
+
+	err := os.Symlink(targetFile, sym)
+	if err != nil {
+		PrintError("MakeSymlink", err)
+		return err
 	}
 
 	return nil
@@ -233,7 +235,7 @@ func MakeSymlink(targetFile string, sym string) error {
 func IsSymlink(src string) bool {
 	linfo, err := os.Lstat(src)
 	if err != nil {
-		PrintError("IsSymlink", err)
+		//PrintError("IsSymlink", err)
 		return false
 	}
 	if linfo.Mode()&os.ModeSymlink != 0 {

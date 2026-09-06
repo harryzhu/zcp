@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"os"
+	"runtime"
 	"strings"
 	"time"
 
@@ -38,7 +39,8 @@ var (
 	//
 	ErrorLogFile string = "logs/errors.log"
 	//
-	tStart time.Time
+	tStart      time.Time
+	runPlatform string
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -50,6 +52,8 @@ var rootCmd = &cobra.Command{
 		SourceDir = strings.TrimSuffix(ToUnixSlash(SourceDir), "/")
 		TargetDir = strings.TrimSuffix(ToUnixSlash(TargetDir), "/")
 		LogDir = strings.TrimSuffix(ToUnixSlash(LogDir), "/")
+
+		runPlatform = strings.ToLower(runtime.GOOS)
 
 		tStart = GetNowTime()
 	},

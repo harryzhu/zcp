@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"regexp"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -47,7 +48,16 @@ var pushCmd = &cobra.Command{
 		if IsWithTLS {
 			PrintlnInfo("green", "PUSH", "in TLS mode")
 		}
-		gClientHandshake()
+		serverInfo := gClientHandshake()
+		DebugInfo("Server Info", serverInfo)
+		if strings.Contains(serverInfo, "windows") {
+			if runPlatform == "windows" {
+				IsFollowSymlink = true
+			}
+			if runPlatform != "windows" {
+				PrintlnInfo("cyan", "remote server is running on Windows, [./zcp push] with --follow-symlink=true is recommended. Currently", IsFollowSymlink)
+			}
+		}
 
 		wg := sync.WaitGroup{}
 		wg.Add(3)

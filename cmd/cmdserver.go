@@ -14,6 +14,10 @@ var serverCmd = &cobra.Command{
 	Long:  ``,
 	PreRun: func(cmd *cobra.Command, args []string) {
 		StartLogging(LogDir, "server.log")
+		if runPlatform == "windows" {
+			tips := `[zcp.exe server] is running on Windows. If you want to KEEP symbol link from Linux/MacOS, running [zcp.exe server] with Administrator Privileges is recommended, or symbol links will be IGNORED with permission error`
+			PrintlnInfo("cyan", tips)
+		}
 
 		if TargetDir == "" || !Exists(TargetDir) {
 			FatalError("--target-dir= error", NewError(TargetDir+" does not exist."))
