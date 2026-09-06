@@ -51,9 +51,6 @@ var pushCmd = &cobra.Command{
 		serverInfo := gClientHandshake()
 		DebugInfo("Server Info", serverInfo)
 		if strings.Contains(serverInfo, "windows") {
-			if runPlatform == "windows" {
-				IsFollowSymlink = true
-			}
 			if runPlatform != "windows" {
 				PrintlnInfo("cyan", "remote server is running on Windows, [./zcp push] with --follow-symlink=true is recommended. Currently", IsFollowSymlink)
 			}
