@@ -21,10 +21,10 @@ var pushCmd = &cobra.Command{
 	Short: "",
 	Long:  ``,
 	PreRun: func(cmd *cobra.Command, args []string) {
-		StartLogging("client.log")
+		StartLogging(LogDir, "client.log")
 
 		if SourceDir == "" || !Exists(SourceDir) {
-			FatalError("arg error", NewError("--source-dir=  does not exist."))
+			FatalError("--source-dir= error", NewError(SourceDir+" does not exist."))
 		}
 
 		if MinSizeMB != -1 {

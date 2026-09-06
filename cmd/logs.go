@@ -16,9 +16,17 @@ import (
 var logHandler *os.File
 var logWriter *bufio.Writer
 
-func StartLogging(fname string) {
-	var err error
-	logPath := ToUnixSlash(filepath.Join(LogDir, fname))
+func StartLogging(logdir string, fname string) {
+	_, err := os.Stat(logdir)
+	if err != nil {
+		fmt.Println("StartLogging: ", logdir, "/", fname)
+		err = os.MkdirAll(logdir, os.ModePerm)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	logPath := ToUnixSlash(filepath.Join(logdir, fname))
 	log.Println("logPath: ", logPath)
 	logHandler, err = os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, os.ModePerm)
 	if err != nil {

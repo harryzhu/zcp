@@ -215,13 +215,12 @@ func TimeStr2Unix(s string) int64 {
 	return parsedTime.Unix()
 }
 
-func MakeSymlink(srcFile string, dstLink string) error {
-	srcFile = ToUnixSlash(srcFile)
-	dstLink = ToUnixSlash(dstLink)
+func MakeSymlink(targetFile string, sym string) error {
+	targetFile = ToUnixSlash(targetFile)
+	sym = ToUnixSlash(sym)
 
-	_, err := os.Lstat(dstLink)
-	if err != nil {
-		err := os.Symlink(srcFile, dstLink)
+	if !Exists(sym) {
+		err := os.Symlink(targetFile, sym)
 		if err != nil {
 			PrintError("MakeSymlink", err)
 			return err
@@ -243,19 +242,19 @@ func IsSymlink(src string) bool {
 	return false
 }
 
-func GetSymlink(src string) string {
-	linfo, err := os.Lstat(src)
+func GetSymlink(sym string) string {
+	linfo, err := os.Lstat(sym)
 	if err != nil {
 		PrintError("GetSymlink", err)
 		return ""
 	}
 	if linfo.Mode()&os.ModeSymlink != 0 {
-		srcLinkTarget, err := os.Readlink(src)
+		targetFile, err := os.Readlink(sym)
 		if err != nil {
 			PrintError("GetSymlink", err)
 			return ""
 		}
-		return srcLinkTarget
+		return targetFile
 	}
 	return ""
 }

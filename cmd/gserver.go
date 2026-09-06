@@ -77,11 +77,10 @@ func (s *FileTransferService) SyncMisc(ctx context.Context, miscIn *pb.Misc) (*p
 	if miscIn.Type == "symlink" {
 		symlist, err := Bytes2MapString(miscIn.Data)
 		if err == nil {
-			for k, dstLink := range symlist {
-				srcPath := ToUnixSlash(filepath.Join(TargetDir, k))
-				dstLink = ToUnixSlash(dstLink)
-				MakeSymlink(dstLink, srcPath)
-				DebugInfo("SyncMisc: MakeSymlink", dstLink, " <- ", srcPath)
+			for sym, dstFile := range symlist {
+				sym = ToUnixSlash(filepath.Join(TargetDir, sym))
+				MakeSymlink(dstFile, sym)
+				DebugInfo("SyncMisc: MakeSymlink", "[symbolink]: ", sym, " => [file]: ", dstFile)
 			}
 		}
 

@@ -50,9 +50,7 @@ var rootCmd = &cobra.Command{
 		SourceDir = strings.TrimSuffix(ToUnixSlash(SourceDir), "/")
 		TargetDir = strings.TrimSuffix(ToUnixSlash(TargetDir), "/")
 		LogDir = strings.TrimSuffix(ToUnixSlash(LogDir), "/")
-		if !Exists(LogDir) {
-			MakeDirs(LogDir)
-		}
+
 		tStart = GetNowTime()
 	},
 

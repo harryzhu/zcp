@@ -32,13 +32,11 @@ func gClientHandshake() {
 	}
 }
 
-func gClientIsSame(fpath string, finfo fs.FileInfo, clientHead pb.FileTransferClient) bool {
+func gClientIsSame(fpath string, clientHead pb.FileTransferClient) bool {
 	if IsWithDiff == false {
 		return false
 	}
-	// if finfo.Size() < ignoreDiffSize {
-	// 	return false
-	// }
+
 	cpbf := file2pbFile(fpath, false)
 	resp, err := clientHead.Head(context.Background(), &cpbf)
 	if err != nil {
@@ -51,12 +49,10 @@ func gClientIsSame(fpath string, finfo fs.FileInfo, clientHead pb.FileTransferCl
 	if resp.Action == 0 && resp.Fhash != "" {
 		DebugInfo("gClientIsSame", "checking hash => ", filepath.Base(fpath))
 		clientHash := hashFile(fpath)
-		if resp.Fhash != clientHash {
-			return false
-		}
 		if resp.Fhash == clientHash {
 			return true
 		}
+		return false
 	}
 
 	if resp.Action == 1 {
@@ -106,6 +102,7 @@ func selectFiles() error {
 
 	idx := 0
 	var relFpath string
+	SourceDir = ToUnixSlash(SourceDir)
 	filepath.Walk(SourceDir, func(fpath string, finfo fs.FileInfo, err error) error {
 		if err != nil {
 			PrintError("selectFiles", err)
@@ -121,8 +118,8 @@ func selectFiles() error {
 
 		if IsFollowSymlink == false {
 			if IsSymlink(fpath) {
-				dstSym := ToUnixSlash(GetSymlink(fpath))
-				symLinkMap[relFpath] = dstSym
+				targetFile := ToUnixSlash(GetSymlink(fpath))
+				symLinkMap[relFpath] = targetFile
 				return nil
 			}
 		}
@@ -138,7 +135,7 @@ func selectFiles() error {
 				<-sem
 				wg.Done()
 			}()
-			if gClientIsSame(fpath, finfo, clientHead) == true {
+			if gClientIsSame(fpath, clientHead) == true {
 				DebugInfo("[SKIP]", strings.TrimPrefix(strings.TrimPrefix(fpath, SourceDir), "/"))
 				return nil
 			}

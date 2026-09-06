@@ -13,10 +13,10 @@ var serverCmd = &cobra.Command{
 	Short: "",
 	Long:  ``,
 	PreRun: func(cmd *cobra.Command, args []string) {
-		StartLogging("server.log")
+		StartLogging(LogDir, "server.log")
 
 		if TargetDir == "" || !Exists(TargetDir) {
-			FatalError("arg error", NewError("--target-dir=  does not exist."))
+			FatalError("--target-dir= error", NewError(TargetDir+" does not exist."))
 		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
