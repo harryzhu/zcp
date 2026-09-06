@@ -129,7 +129,7 @@
 
 ## On Windows
 
-1. 如果 `zcp server` 端运行在 `Windows` 上，需要注意`权限`问题：
+1. 如果 `zcp server` 端运行在 `Windows`，客户端运行在 `Linux/Mac` 上，需要注意`软链接权限`问题：
   
   1. 如果客户端 `zcp push` 也是运行在 `Windows` 上，`server端` 可以正常接收所有文件；
 
