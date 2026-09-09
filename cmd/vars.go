@@ -7,8 +7,6 @@ import (
 var (
 	chanLargeFiles chan string = make(chan string, 2048)
 	chanSmallFiles chan string = make(chan string, 8192)
-	// server
-	chanExtractZip chan string = make(chan string, 64)
 )
 
 var (

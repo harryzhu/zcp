@@ -67,20 +67,20 @@ func gClientIsSame(fpath string, clientHead pb.FileTransferClient) bool {
 func gClientSyncFolderSymlink() error {
 	DebugInfo("gClientSyncFolderSymlink", "...")
 	client := GetClient()
-	// lenSym := len(symLinkMap)
-	// if lenSym > 0 {
-	// 	PrintlnInfo("cyan", "Symlinks", lenSym)
-	// 	atomic.AddInt32(&totalNum, int32(lenSym))
-	// 	b, err := Map2Bytes(symLinkMap)
-	// 	if err == nil {
-	// 		pbm := pb.Misc{Type: "symlink", Data: b}
-	// 		client.SyncMisc(context.Background(), &pbm)
-	// 	}
+	lenSym := len(symLinkMap)
+	if lenSym > 0 {
+		PrintlnInfo("cyan", "Symlinks", lenSym)
+		atomic.AddInt32(&totalNum, int32(lenSym))
+		b, err := Map2Bytes(symLinkMap)
+		if err == nil {
+			pbm := pb.Misc{Type: "symlink", Data: b}
+			client.SyncMisc(context.Background(), &pbm)
+		}
 
-	// }
+	}
 
 	if len(folderInfoMap) > 0 {
-		//PrintlnInfo("cyan", "Folders", len(folderInfoMap))
+		PrintlnInfo("cyan", "Folders", len(folderInfoMap))
 		b, err := Map2Bytes(folderInfoMap)
 		if err == nil {
 			pbm := pb.Misc{Type: "folder", Data: b}
@@ -100,7 +100,6 @@ func selectFiles() error {
 
 	client := GetClient()
 
-	// idx := 0
 	var relFpath string
 	var fsize int64
 	var nLarge, nSmall, nSymlink int32
@@ -168,9 +167,13 @@ func diffFiles() error {
 	}
 	var nDiff int32
 	var nSame int32
-	var sem chan struct{} = make(chan struct{}, 4)
+	var sem chan struct{} = make(chan struct{}, 8)
 	wg := sync.WaitGroup{}
 	clients := []pb.FileTransferClient{
+		GetClient(),
+		GetClient(),
+		GetClient(),
+		GetClient(),
 		GetClient(),
 		GetClient(),
 		GetClient(),
@@ -198,7 +201,7 @@ func diffFiles() error {
 			}()
 			if gClientIsSame(fpath, clientHead) == false {
 				atomic.AddInt32(&nDiff, 1)
-				PrintlnInfo("yellow", "[DIFF]", strings.TrimPrefix(strings.TrimPrefix(fpath, SourceDir), "/"))
+				fmt.Println(strings.TrimPrefix(strings.TrimPrefix(fpath, SourceDir), "/"))
 				return nil
 			} else {
 				atomic.AddInt32(&nSame, 1)
@@ -207,7 +210,7 @@ func diffFiles() error {
 		}(clients[idx])
 
 		idx++
-		if idx > 3 {
+		if idx > 7 {
 			idx = 0
 		}
 
@@ -236,7 +239,7 @@ func file2pbFile(fpath string, withHash bool) pb.File {
 		return pbFile
 	}
 	if finfo.IsDir() {
-		PrintError("file2pbFile", NewError("path is a directory:", fpath))
+		DebugInfo("file2pbFile", "path should not be a directory: ", fpath)
 		return pbFile
 	}
 	//

@@ -4,6 +4,8 @@ Copyright © 2026 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 )
 
@@ -24,7 +26,7 @@ var diffCmd = &cobra.Command{
 			PrintlnInfo("green", "DIFF", "in TLS mode")
 		}
 		gClientHandshake()
-
+		fmt.Println(Cyan("Different Files:"))
 		diffFiles()
 	},
 }
