@@ -60,32 +60,35 @@ var pushCmd = &cobra.Command{
 		wg.Add(3)
 
 		go func() {
+			PrintlnInfo("purple", "Large Files", "Sending ...")
 			taskSendLargeFiles()
 			wg.Done()
 		}()
 
 		go func() {
+			PrintlnInfo("purple", "Small Files", "Sending ...")
 			taskSendSmallFiles()
 			wg.Done()
 		}()
 
 		go func() {
+			PrintlnInfo("purple", "Source", "Walking ...")
 			selectFiles()
 			wg.Done()
 		}()
 
 		wg.Wait()
+
 		gClientSyncFolderSymlink()
 		logSendFailure()
 	},
 	PostRun: func(cmd *cobra.Command, args []string) {
-		if IsDebug {
-			tSizeMB := atomic.LoadInt64(&totalSize) >> 20
-			speed := gClientGetSpeed() >> 20
-			tNum := atomic.LoadInt32(&totalNum)
-			PrintlnInfo("purple", "Stats", "Speed: ", speed, " MB/s, Files: ",
-				tNum, ", Size: ", tSizeMB, " MB")
-		}
+		tSizeMB := atomic.LoadInt64(&totalSize) >> 20
+		speed := gClientGetSpeed() >> 20
+		tNum := atomic.LoadInt32(&totalNum)
+		PrintlnInfo("purple", "Stats", "Speed: ", speed, " MB/s, Files: ",
+			tNum, ", Size: ", tSizeMB, " MB")
+
 	},
 }
 

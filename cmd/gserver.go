@@ -21,17 +21,25 @@ func (s *FileTransferService) Head(ctx context.Context, pbIn *pb.File) (*pb.File
 	}
 
 	dstPath := ToUnixSlash(filepath.Join(TargetDir, pbIn.Fpath))
-	DebugInfo("Head", dstPath)
+	//DebugInfo("Head", dstPath)
 
 	dstInfo, err := os.Stat(dstPath)
 	if err != nil {
 		resp.Action = -1
+		resp.Comment = "404"
+		return &resp, nil
+	}
+
+	if dstInfo.IsDir() {
+		resp.Action = 0
+		resp.Comment = "path cannot be dir"
 		return &resp, nil
 	}
 
 	if dstInfo.Size() != pbIn.Fsize {
 		resp.Action = -1
 		resp.Fsize = dstInfo.Size()
+		resp.Comment = "different size"
 		return &resp, nil
 	}
 
@@ -39,16 +47,20 @@ func (s *FileTransferService) Head(ctx context.Context, pbIn *pb.File) (*pb.File
 	if pbIn.Fhash == "" {
 		resp.Action = 0
 		resp.Fhash = h
+		resp.Comment = "TBD by hash"
 		return &resp, nil
-	} else {
-		if h != pbIn.Fhash {
-			resp.Action = -1
-			resp.Fhash = h
-			return &resp, nil
-		}
 	}
 
-	resp.Action = 1
+	if h != pbIn.Fhash {
+		resp.Action = -1
+		resp.Fhash = h
+		resp.Comment = "different hash"
+		return &resp, nil
+	}
+
+	resp.Action = -1
+	resp.Comment = "different"
+	DebugInfo("HEAD", "[different]", dstPath)
 
 	return &resp, nil
 
@@ -100,8 +112,9 @@ func (s *FileTransferService) StreamReceive(stream pb.FileTransfer_StreamReceive
 		}
 
 		if err != nil {
+			PrintError("StreamReceive", err)
 			stream.SendAndClose(&pb.File{Action: -1, Comment: err.Error()})
-			return nil
+			return err
 		}
 
 		err = chunkSave(pbIn)
@@ -111,5 +124,4 @@ func (s *FileTransferService) StreamReceive(stream pb.FileTransfer_StreamReceive
 		}
 
 	}
-
 }

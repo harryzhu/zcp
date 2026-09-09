@@ -41,9 +41,11 @@ func gClientIsSame(fpath string, clientHead pb.FileTransferClient) bool {
 	cpbf := file2pbFile(fpath, false)
 	resp, err := clientHead.Head(context.Background(), &cpbf)
 	if err != nil {
+		PrintError("gClientIsSame", err)
 		return false
 	}
 	if resp.Action == -1 {
+		DebugInfo("gClientIsSame", resp.Comment)
 		return false
 	}
 
@@ -65,16 +67,20 @@ func gClientIsSame(fpath string, clientHead pb.FileTransferClient) bool {
 func gClientSyncFolderSymlink() error {
 	DebugInfo("gClientSyncFolderSymlink", "...")
 	client := GetClient()
-	if len(symLinkMap) > 0 {
-		b, err := Map2Bytes(symLinkMap)
-		if err == nil {
-			pbm := pb.Misc{Type: "symlink", Data: b}
-			client.SyncMisc(context.Background(), &pbm)
-		}
+	// lenSym := len(symLinkMap)
+	// if lenSym > 0 {
+	// 	PrintlnInfo("cyan", "Symlinks", lenSym)
+	// 	atomic.AddInt32(&totalNum, int32(lenSym))
+	// 	b, err := Map2Bytes(symLinkMap)
+	// 	if err == nil {
+	// 		pbm := pb.Misc{Type: "symlink", Data: b}
+	// 		client.SyncMisc(context.Background(), &pbm)
+	// 	}
 
-	}
+	// }
 
 	if len(folderInfoMap) > 0 {
+		//PrintlnInfo("cyan", "Folders", len(folderInfoMap))
 		b, err := Map2Bytes(folderInfoMap)
 		if err == nil {
 			pbm := pb.Misc{Type: "folder", Data: b}
@@ -91,18 +97,13 @@ func selectFiles() error {
 		PrintError("selectFiles", err)
 		return err
 	}
-	var sem chan struct{} = make(chan struct{}, 8)
-	wg := sync.WaitGroup{}
 
-	clients := []pb.FileTransferClient{
-		GetClient(),
-		GetClient(),
-		GetClient(),
-		GetClient(),
-	}
+	client := GetClient()
 
-	idx := 0
+	// idx := 0
 	var relFpath string
+	var fsize int64
+	var nLarge, nSmall, nSymlink int32
 	SourceDir = ToUnixSlash(SourceDir)
 	filepath.Walk(SourceDir, func(fpath string, finfo fs.FileInfo, err error) error {
 		if err != nil {
@@ -121,6 +122,7 @@ func selectFiles() error {
 			if IsSymlink(fpath) {
 				targetFile := ToUnixSlash(GetSymlink(fpath))
 				symLinkMap[relFpath] = targetFile
+				atomic.AddInt32(&nSymlink, 1)
 				return nil
 			}
 		}
@@ -128,6 +130,64 @@ func selectFiles() error {
 		if IsFileNeeded(fpath, finfo) == false {
 			return nil
 		}
+
+		if gClientIsSame(fpath, client) == true {
+			return nil
+		}
+
+		fsize = finfo.Size()
+		if fsize > largeSmallThreshold {
+			chanLargeFiles <- fpath
+			atomic.AddInt32(&nLarge, 1)
+		} else {
+			chanSmallFiles <- fpath
+			atomic.AddInt32(&nSmall, 1)
+		}
+		atomic.AddInt64(&totalSize, fsize)
+		atomic.AddInt32(&totalNum, 1)
+		PrintSpinner(Int32Str(atomic.LoadInt32(&totalNum)))
+		return nil
+	})
+
+	chanLargeFiles <- AllDone
+	chanSmallFiles <- AllDone
+
+	PrintlnInfo("purple", "Task Count",
+		"Large: ", atomic.LoadInt32(&nLarge),
+		", Small: ", atomic.LoadInt32(&nSmall),
+		", Symlink: ", atomic.LoadInt32(&nSymlink))
+
+	return nil
+}
+
+func diffFiles() error {
+	_, err := os.Stat(SourceDir)
+	if err != nil {
+		PrintError("selectFiles", err)
+		return err
+	}
+	var nDiff int32
+	var nSame int32
+	var sem chan struct{} = make(chan struct{}, 4)
+	wg := sync.WaitGroup{}
+	clients := []pb.FileTransferClient{
+		GetClient(),
+		GetClient(),
+		GetClient(),
+		GetClient(),
+	}
+	idx := 0
+	SourceDir = ToUnixSlash(SourceDir)
+	filepath.Walk(SourceDir, func(fpath string, finfo fs.FileInfo, err error) error {
+		if err != nil {
+			PrintError("selectFiles", err)
+		}
+
+		fpath = ToUnixSlash(fpath)
+		if finfo.IsDir() {
+			return nil
+		}
+
 		sem <- struct{}{}
 		wg.Add(1)
 
@@ -136,17 +196,13 @@ func selectFiles() error {
 				<-sem
 				wg.Done()
 			}()
-			if gClientIsSame(fpath, clientHead) == true {
-				DebugInfo("[SKIP]", strings.TrimPrefix(strings.TrimPrefix(fpath, SourceDir), "/"))
+			if gClientIsSame(fpath, clientHead) == false {
+				atomic.AddInt32(&nDiff, 1)
+				PrintlnInfo("yellow", "[DIFF]", strings.TrimPrefix(strings.TrimPrefix(fpath, SourceDir), "/"))
 				return nil
-			}
-
-			if finfo.Size() > largeSmallThreshold {
-				chanLargeFiles <- fpath
 			} else {
-				chanSmallFiles <- fpath
+				atomic.AddInt32(&nSame, 1)
 			}
-
 			return nil
 		}(clients[idx])
 
@@ -161,8 +217,8 @@ func selectFiles() error {
 	wg.Wait()
 	close(sem)
 
-	chanLargeFiles <- AllDone
-	chanSmallFiles <- AllDone
+	PrintlnInfo("purple", "Different Files", atomic.LoadInt32(&nDiff))
+	PrintlnInfo("white", "Same Files", atomic.LoadInt32(&nSame))
 
 	return nil
 }
@@ -173,10 +229,14 @@ func NewPbFile() pb.File {
 
 func file2pbFile(fpath string, withHash bool) pb.File {
 	fpath = ToUnixSlash(fpath)
-	pbFile := pb.File{}
+	pbFile := pb.File{Fpath: ""}
 	finfo, err := os.Stat(fpath)
 	if err != nil {
 		PrintError("file2pbFile", err)
+		return pbFile
+	}
+	if finfo.IsDir() {
+		PrintError("file2pbFile", NewError("path is a directory:", fpath))
 		return pbFile
 	}
 	//

@@ -7,11 +7,6 @@ import (
 	"path/filepath"
 	pb "pb"
 	"strings"
-	"sync"
-)
-
-var (
-	sendFailure sync.Map
 )
 
 func chunkSend(fpath string, action int32) error {
@@ -27,6 +22,13 @@ func chunkSend(fpath string, action int32) error {
 	}
 	defer fp.Close()
 
+	pbf := file2pbFile(fpath, true)
+	if pbf.Fpath == "" {
+		err = NewError("path cannot be empty")
+		PrintError("chunkSend: file2pbFile", err)
+		return err
+	}
+
 	clientStream := GetClientStream()
 
 	reader := bufio.NewReaderSize(fp, int(chunkSize))
@@ -34,7 +36,7 @@ func chunkSend(fpath string, action int32) error {
 
 	offset := int64(0)
 	chunkNum := int32(0)
-	pbf := file2pbFile(fpath, true)
+
 	pbf.Action = 0
 	for {
 		n, err := reader.Read(buffer)
@@ -59,6 +61,7 @@ func chunkSend(fpath string, action int32) error {
 	}
 
 	resp, err := clientStream.CloseAndRecv()
+
 	if err != nil {
 		FatalError("chunkSend: CloseAndRecv", err)
 	}
@@ -66,6 +69,10 @@ func chunkSend(fpath string, action int32) error {
 	if resp.Action == -1 {
 		sendFailure.Store(fpath, resp.Comment)
 		PrintlnInfo("red", "chunkSend: ERROR", resp.Action, resp.Comment)
+	}
+
+	if action == 200 {
+		PrintlnInfo("green", "chunkSend: Response", filepath.Base(fpath), " => ", resp.Comment)
 	}
 
 	return nil
@@ -118,12 +125,16 @@ func chunkSave(pbFile *pb.File) error {
 
 	if pbFile.Action == 100 || pbFile.Action == 200 {
 		dstWriter.Close()
-		if hashFile(targetPathTemp) == pbFile.Fhash {
+		recvHash := hashFile(targetPathTemp)
+		if recvHash == pbFile.Fhash {
 			err := os.Rename(targetPathTemp, targetPath)
 			if err != nil {
 				PrintError("chunkSave: os.Rename", err)
 				return err
 			}
+		} else {
+			err = NewError("received file is BROKEN. hash: ", recvHash, ", source-file-hash: ", pbFile.Fhash)
+			PrintError("chunkSave: Hash", err)
 		}
 
 		if Exists(targetPath) {

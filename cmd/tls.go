@@ -109,7 +109,6 @@ func _buildGrpcTLSClientConn() *grpc.ClientConn {
 			grpc.MaxCallSendMsgSize(maxGrpcMessageSize)),
 	}
 
-	//clientConn, err := grpc.Dial(hostPort, opts...)
 	clientConn, err := grpc.NewClient(
 		hostPort,
 		opts...,

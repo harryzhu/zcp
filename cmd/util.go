@@ -68,6 +68,9 @@ func GetFileSize(fpath string) int64 {
 	if err != nil {
 		return -1
 	}
+	if finfo.IsDir() {
+		return -1
+	}
 	return finfo.Size()
 }
 
@@ -89,6 +92,16 @@ func UnZstdBytes(zin []byte) (out []byte, err error) {
 func hashFile(fpath string) string {
 	var hasher hash.Hash
 	hasher = xxh3.New()
+
+	finfo, err := os.Stat(fpath)
+	if err != nil {
+		PrintError("HashFile", err)
+		return ""
+	}
+
+	if finfo.IsDir() {
+		return ""
+	}
 
 	fh, err := os.Open(fpath)
 	if err != nil {
