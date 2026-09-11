@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	pb "pb"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -33,35 +32,56 @@ func gClientHandshake() string {
 	return resp.Comment
 }
 
-func gClientIsSame(fpath string, clientHead pb.FileTransferClient) bool {
-	if IsWithDiff == false {
-		return false
+func gClientIsSame(relpathsize map[string]string, clientMisc pb.FileTransferClient) map[string]bool {
+	result := make(map[string]bool, len(relpathsize))
+	m := map[string]any{}
+	for relpath, size := range relpathsize {
+		result[relpath] = false
+		m[relpath] = size
 	}
 
-	cpbf := file2pbFile(fpath, false)
-	resp, err := clientHead.Head(context.Background(), &cpbf)
+	if IsWithDiff == false {
+		return result
+	}
+
+	b, err := Map2Bytes(m)
 	if err != nil {
 		PrintError("gClientIsSame", err)
-		return false
-	}
-	if resp.Action == -1 {
-		DebugInfo("gClientIsSame", resp.Comment)
-		return false
 	}
 
-	if resp.Action == 0 && resp.Fhash != "" {
-		DebugInfo("gClientIsSame", "checking hash => ", filepath.Base(fpath))
-		clientHash := hashFile(fpath)
-		if resp.Fhash == clientHash {
-			return true
+	misc := pb.Misc{
+		Type: "difflist",
+		Data: b,
+	}
+
+	resp, err := clientMisc.SyncMisc(context.Background(), &misc)
+	if err != nil {
+		PrintError("gClientIsSame", err)
+		return result
+	}
+
+	mdst, err := Bytes2MapString(resp.Data)
+	if err != nil {
+		PrintError("gClientIsSame", err)
+		return result
+	}
+	for relpath, v := range mdst {
+		if v == "-1" {
+			result[relpath] = false
+			continue
 		}
-		return false
+		if v == "0" {
+			result[relpath] = true
+			continue
+		}
+		if v == hashFile(ToUnixSlash(filepath.Join(SourceDir, relpath))) {
+			result[relpath] = true
+			continue
+		}
+		result[relpath] = false
 	}
 
-	if resp.Action == 1 {
-		return true
-	}
-	return false
+	return result
 }
 
 func gClientSyncFolderSymlink() error {
@@ -69,25 +89,21 @@ func gClientSyncFolderSymlink() error {
 	client := GetClient()
 	lenSym := len(symLinkMap)
 	if lenSym > 0 {
-		PrintlnInfo("cyan", "Symlinks", lenSym)
 		atomic.AddInt32(&totalNum, int32(lenSym))
 		b, err := Map2Bytes(symLinkMap)
 		if err == nil {
 			pbm := pb.Misc{Type: "symlink", Data: b}
 			client.SyncMisc(context.Background(), &pbm)
 		}
-
 	}
 
 	if len(folderInfoMap) > 0 {
-		PrintlnInfo("cyan", "Folders", len(folderInfoMap))
 		b, err := Map2Bytes(folderInfoMap)
 		if err == nil {
 			pbm := pb.Misc{Type: "folder", Data: b}
 			client.SyncMisc(context.Background(), &pbm)
 		}
 	}
-
 	return nil
 }
 
@@ -98,11 +114,8 @@ func selectFiles() error {
 		return err
 	}
 
-	client := GetClient()
-
 	var relFpath string
-	var fsize int64
-	var nLarge, nSmall, nSymlink int32
+	var batchFiles map[string]string = make(map[string]string, 2000)
 	SourceDir = ToUnixSlash(SourceDir)
 	filepath.Walk(SourceDir, func(fpath string, finfo fs.FileInfo, err error) error {
 		if err != nil {
@@ -113,6 +126,7 @@ func selectFiles() error {
 		relFpath = strings.TrimPrefix(strings.TrimPrefix(fpath, SourceDir), "/")
 
 		if finfo.IsDir() {
+			atomic.AddInt32(&selectFolder, 1)
 			folderInfoMap[relFpath] = NewFinfoLite(finfo.Size(), finfo.ModTime(), finfo.Mode())
 			return nil
 		}
@@ -121,7 +135,7 @@ func selectFiles() error {
 			if IsSymlink(fpath) {
 				targetFile := ToUnixSlash(GetSymlink(fpath))
 				symLinkMap[relFpath] = targetFile
-				atomic.AddInt32(&nSymlink, 1)
+				atomic.AddInt32(&selectSymlink, 1)
 				return nil
 			}
 		}
@@ -130,31 +144,55 @@ func selectFiles() error {
 			return nil
 		}
 
-		if gClientIsSame(fpath, client) == true {
-			return nil
+		batchFiles[relFpath] = Int64Str(finfo.Size())
+		if len(batchFiles) > 2000 {
+			files2chan(batchFiles)
+			batchFiles = make(map[string]string, 2000)
 		}
 
-		fsize = finfo.Size()
-		if fsize > largeSmallThreshold {
-			chanLargeFiles <- fpath
-			atomic.AddInt32(&nLarge, 1)
-		} else {
-			chanSmallFiles <- fpath
-			atomic.AddInt32(&nSmall, 1)
-		}
-		atomic.AddInt64(&totalSize, fsize)
-		atomic.AddInt32(&totalNum, 1)
-		PrintSpinner(Int32Str(atomic.LoadInt32(&totalNum)))
 		return nil
 	})
 
+	if len(batchFiles) > 0 {
+		files2chan(batchFiles)
+	}
 	chanLargeFiles <- AllDone
 	chanSmallFiles <- AllDone
 
 	PrintlnInfo("purple", "Task Count",
-		"Large: ", atomic.LoadInt32(&nLarge),
-		", Small: ", atomic.LoadInt32(&nSmall),
-		", Symlink: ", atomic.LoadInt32(&nSymlink))
+		"Large: ", atomic.LoadInt32(&selectLarge),
+		", Small: ", atomic.LoadInt32(&selectSmall),
+		", Folder: ", atomic.LoadInt32(&selectFolder),
+		", Symlink: ", atomic.LoadInt32(&selectSymlink))
+
+	return nil
+}
+
+func files2chan(roundFiles map[string]string) error {
+	client := GetClient()
+	var fsize int64
+	relpathbool := gClientIsSame(roundFiles, client)
+	for rpath, bl := range relpathbool {
+		if bl == true {
+			continue
+		}
+		//
+		srcPath := ToUnixSlash(filepath.Join(SourceDir, rpath))
+		fsize = GetFileSize(srcPath)
+		if fsize == -1 {
+			continue
+		}
+		if fsize > largeSmallThreshold {
+			chanLargeFiles <- srcPath
+			atomic.AddInt32(&selectLarge, 1)
+		} else {
+			chanSmallFiles <- srcPath
+			atomic.AddInt32(&selectSmall, 1)
+		}
+		atomic.AddInt64(&totalSize, fsize)
+		atomic.AddInt32(&totalNum, 1)
+		PrintSpinner(Int32Str(atomic.LoadInt32(&totalNum)))
+	}
 
 	return nil
 }
@@ -167,59 +205,50 @@ func diffFiles() error {
 	}
 	var nDiff int32
 	var nSame int32
-	var sem chan struct{} = make(chan struct{}, 8)
-	wg := sync.WaitGroup{}
-	clients := []pb.FileTransferClient{
-		GetClient(),
-		GetClient(),
-		GetClient(),
-		GetClient(),
-		GetClient(),
-		GetClient(),
-		GetClient(),
-		GetClient(),
-	}
-	idx := 0
+
+	client := GetClient()
 	SourceDir = ToUnixSlash(SourceDir)
+	var relFpath string
+	var batchFiles map[string]string = make(map[string]string, 2000)
 	filepath.Walk(SourceDir, func(fpath string, finfo fs.FileInfo, err error) error {
 		if err != nil {
 			PrintError("selectFiles", err)
 		}
 
 		fpath = ToUnixSlash(fpath)
+		relFpath = strings.TrimPrefix(strings.TrimPrefix(fpath, SourceDir), "/")
 		if finfo.IsDir() {
 			return nil
 		}
 
-		sem <- struct{}{}
-		wg.Add(1)
-
-		go func(clientHead pb.FileTransferClient) error {
-			defer func() {
-				<-sem
-				wg.Done()
-			}()
-			if gClientIsSame(fpath, clientHead) == false {
-				atomic.AddInt32(&nDiff, 1)
-				fmt.Println(strings.TrimPrefix(strings.TrimPrefix(fpath, SourceDir), "/"))
-				return nil
-			} else {
-				atomic.AddInt32(&nSame, 1)
+		batchFiles[relFpath] = Int64Str(finfo.Size())
+		if len(batchFiles) > 2000 {
+			roundFiles := batchFiles
+			relpathbool := gClientIsSame(roundFiles, client)
+			for rpath, bl := range relpathbool {
+				if bl == false {
+					fmt.Println(rpath)
+					atomic.AddInt32(&nDiff, 1)
+				} else {
+					atomic.AddInt32(&nSame, 1)
+				}
 			}
-			return nil
-		}(clients[idx])
-
-		idx++
-		if idx > 7 {
-			idx = 0
+			batchFiles = make(map[string]string, 2000)
 		}
 
 		return nil
 	})
 
-	wg.Wait()
-	close(sem)
-
+	relpathbool := gClientIsSame(batchFiles, client)
+	for rpath, bl := range relpathbool {
+		if bl == false {
+			fmt.Println(rpath)
+			atomic.AddInt32(&nDiff, 1)
+		} else {
+			atomic.AddInt32(&nSame, 1)
+		}
+	}
+	fmt.Println(Cyan("-----------------------------------------"))
 	PrintlnInfo("purple", "Different Files", atomic.LoadInt32(&nDiff))
 	PrintlnInfo("white", "Same Files", atomic.LoadInt32(&nSame))
 

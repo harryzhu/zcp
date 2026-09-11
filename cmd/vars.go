@@ -23,3 +23,10 @@ var (
 	symLinkMap    map[string]any = make(map[string]any, 64)
 	folderInfoMap map[string]any = make(map[string]any, 256)
 )
+
+var (
+	selectFolder  int32
+	selectLarge   int32
+	selectSmall   int32
+	selectSymlink int32
+)

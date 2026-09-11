@@ -21,7 +21,6 @@ func createZip(filelist []string, taskId int32) (err error) {
 		return err
 	}
 
-	//PrintlnInfo("green", "createZip", zpath)
 	zipFileHandler, err := os.Create(zpath)
 	if err != nil {
 		PrintError("createZip", err)
@@ -32,7 +31,7 @@ func createZip(filelist []string, taskId int32) (err error) {
 	compr := zstd.ZipCompressor(
 		zstd.WithWindowSize(1<<20),
 		zstd.WithEncoderConcurrency(8),
-		zstd.WithEncoderLevel(zstd.SpeedDefault),
+		zstd.WithEncoderLevel(zstd.SpeedFastest),
 		zstd.WithEncoderCRC(false))
 
 	zw := zip.NewWriter(zipFileHandler)
@@ -112,7 +111,7 @@ func createZip(filelist []string, taskId int32) (err error) {
 	if tDuration > 0 {
 		speed = int(float64(finfo.Size()) / tDuration)
 	}
-	PrintlnInfo("green", "createZip", zpath, " => Complete. ", time.Since(t1), ", ", speed>>20, "MB/s\n")
+	PrintlnInfo("green", "createZip", zpath, " => Complete. ", time.Since(t1), ", ", speed>>20, "MB/s")
 
 	if Exists(zpath) {
 		err := os.Remove(zpath)
@@ -176,8 +175,8 @@ func extractZip(zipPath string) error {
 			}
 
 			if _, err := io.Copy(dst, funzip); err != nil {
-				PrintError("extractZip:io.Copy", err)
 				atomic.AddInt32(&nFailure, 1)
+				PrintError("extractZip:io.Copy", err)
 			}
 
 			if err := funzip.Close(); err != nil {

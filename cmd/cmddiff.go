@@ -27,6 +27,7 @@ var diffCmd = &cobra.Command{
 		}
 		gClientHandshake()
 		fmt.Println(Cyan("Different Files:"))
+		fmt.Println(Cyan("-----------------------------------------"))
 		diffFiles()
 	},
 }
